@@ -9,12 +9,12 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config import PADROES, carregar, salvar  # noqa: E402
-from core import Automador  # noqa: E402
+from core import Automador, _tesseract_padrao  # noqa: E402
 
 
 def _tem_tesseract() -> bool:
     cmd = carregar()["tesseract_cmd"]
-    return bool(cmd and Path(cmd).exists()) or shutil.which("tesseract") is not None
+    return bool(cmd and Path(cmd).exists()) or _tesseract_padrao() is not None or shutil.which("tesseract") is not None
 
 
 def _tela_com_botao() -> Image.Image:

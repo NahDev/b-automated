@@ -67,6 +67,7 @@ O resultado fica em `dist\VisualAutomator\`. Ele inclui o Tesseract e os idiomas
 - **"Tesseract não encontrado" ou OCR não acha texto:** confira se o Tesseract está em `C:\Program Files\Tesseract-OCR` ou ajuste o caminho em **Configurações**.
 - **Erros:** o detalhe fica em `logs\visual_automator.log`, ao lado do programa.
 - **A janela abre em outra posição:** é o comportamento normal do Windows. Confira a tela antes de clicar em botões.
+- **`python` abre a Microsoft Store:** o Windows usa um atalho que não é o Python. Use `py -3.14` no lugar de `python`, ou o caminho completo do `python.exe` instalado.
 - **Antivírus bloqueia o `.exe`:** é comum com automação de mouse e teclado. Libere o programa no antivírus ou assine o executável.
 
 ## Estrutura
