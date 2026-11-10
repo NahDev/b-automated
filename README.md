@@ -17,7 +17,13 @@ Testado com Python 3.14 no Windows 11.
 
 ### 1. Python
 
-Instale o Python 3.14 pelo site python.org ou pela Microsoft Store. Marque a opção **Add python.exe to PATH** na instalação.
+Instale o Python 3.14 pelo site python.org ou pela Microsoft Store. Depois confira se o launcher `py` responde:
+
+```bash
+py -3.14 --version
+```
+
+Se o comando abrir a Microsoft Store em vez de mostrar a versão, use o caminho completo do `python.exe` instalado nos comandos abaixo.
 
 ### 2. Tesseract (para o OCR)
 
@@ -28,27 +34,28 @@ Os idiomas `por` e `eng` já vêm na pasta `tessdata` deste repositório, então
 ### 3. Código e dependências
 
 ```bash
-git clone <URL-DO-REPOSITORIO>
-cd visual_automator
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+git clone git@github.com:NahDev/b-automated.git
+cd b-automated
+py -3.14 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+Não é preciso ativar o venv: os comandos usam o Python dele diretamente.
 
 ## Como rodar
 
 ```bash
-python app.py
+.venv\Scripts\python.exe app.py
 ```
 
-Para abrir sem a janela do console, use `pythonw app.py`.
+Para abrir sem a janela do console, use `.venv\Scripts\pythonw.exe app.py`.
 
 Para interromper uma automação, mova o mouse para o canto superior esquerdo da tela (FailSafe do pyautogui).
 
 ## Testes
 
 ```bash
-pytest
+.venv\Scripts\python.exe -m pytest
 ```
 
 O teste de OCR é pulado se o Tesseract não for encontrado.
@@ -56,7 +63,7 @@ O teste de OCR é pulado se o Tesseract não for encontrado.
 ## Gerar o executável (.exe)
 
 ```bash
-pip install -r requirements-build.txt
+.venv\Scripts\python.exe -m pip install -r requirements-build.txt
 powershell -ExecutionPolicy Bypass -File .\build_exe.ps1
 ```
 
@@ -67,7 +74,7 @@ O resultado fica em `dist\VisualAutomator\`. Ele inclui o Tesseract e os idiomas
 - **"Tesseract não encontrado" ou OCR não acha texto:** confira se o Tesseract está em `C:\Program Files\Tesseract-OCR` ou ajuste o caminho em **Configurações**.
 - **Erros:** o detalhe fica em `logs\visual_automator.log`, ao lado do programa.
 - **A janela abre em outra posição:** é o comportamento normal do Windows. Confira a tela antes de clicar em botões.
-- **`python` abre a Microsoft Store:** o Windows usa um atalho que não é o Python. Use `py -3.14` no lugar de `python`, ou o caminho completo do `python.exe` instalado.
+- **`python` abre a Microsoft Store:** o Windows usa um atalho que não é o Python. Use `py -3.14` ou o caminho completo do `python.exe` instalado.
 - **Antivírus bloqueia o `.exe`:** é comum com automação de mouse e teclado. Libere o programa no antivírus ou assine o executável.
 
 ## Estrutura
@@ -77,5 +84,6 @@ O resultado fica em `dist\VisualAutomator\`. Ele inclui o Tesseract e os idiomas
 - `core.py`: busca por imagem e por texto, cliques e digitação.
 - `exportador.py`: geração do código estruturado em `saida/`.
 - `config.py`, `registro.py`: configurações padrão e log em arquivo.
+- `build_exe.ps1`: gera o executável com PyInstaller.
 - `tessdata/`: idiomas do OCR (`eng` e `por`).
 - `tests/`: testes automatizados.
