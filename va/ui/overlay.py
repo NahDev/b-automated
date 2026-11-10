@@ -1,4 +1,4 @@
-"""Captura de tela com selecao por arrastar, para tirar os prints dos alvos."""
+"""Telas cheias com a tela congelada: selecionar uma regiao (prints) e medir um desvio (laboratorio)."""
 
 import tkinter as tk
 from typing import Callable
@@ -6,35 +6,21 @@ from typing import Callable
 import pyautogui
 from PIL import Image, ImageTk
 
+from va.geometria import desvio_entre
+
 
 def selecionar_regiao(master: tk.Misc, ao_concluir: Callable[[Image.Image | None], None]) -> None:
-    """Mostra a tela congelada em tela cheia. O usuario arrasta um retangulo e
-    recebe o recorte; Esc ou um arrasto muito pequeno cancela (recebe None)."""
+    """Mostra a tela congelada. O usuario arrasta um retangulo e recebe o recorte.
+
+    Esc ou um arrasto muito pequeno cancela (recebe None).
+    """
     tela = pyautogui.screenshot()
-    largura, altura = tela.size
-
-    janela = tk.Toplevel(master)
-    janela.overrideredirect(True)
-    janela.geometry(f"{largura}x{altura}+0+0")
-    janela.attributes("-topmost", True)
-
-    foto = ImageTk.PhotoImage(tela)
-    canvas = tk.Canvas(janela, width=largura, height=altura, highlightthickness=0, cursor="crosshair")
-    canvas.pack()
-    canvas.create_image(0, 0, anchor="nw", image=foto)
-    canvas.create_text(
-        20, 20, anchor="nw", fill="yellow", font=("Segoe UI", 14, "bold"),
-        text="Arraste para selecionar o alvo. Esc cancela.",
-    )
-    janela.foto = foto  # mantem a referencia viva enquanto a janela existir
-
+    janela, canvas, _foto = _janela_tela_cheia(master, tela, "Arraste para selecionar o alvo. Esc cancela.")
     inicio = {"x": 0, "y": 0, "retangulo": None}
 
     def ao_pressionar(evento):
         inicio["x"], inicio["y"] = evento.x, evento.y
-        inicio["retangulo"] = canvas.create_rectangle(
-            evento.x, evento.y, evento.x, evento.y, outline="red", width=2
-        )
+        inicio["retangulo"] = canvas.create_rectangle(evento.x, evento.y, evento.x, evento.y, outline="red", width=2)
 
     def ao_arrastar(evento):
         if inicio["retangulo"] is not None:
@@ -61,33 +47,18 @@ def selecionar_regiao(master: tk.Misc, ao_concluir: Callable[[Image.Image | None
     canvas.focus_set()
 
 
-def desvio_entre(ponto_centro: tuple[int, int], ponto_alvo: tuple[int, int]) -> tuple[int, int]:
-    """Desvio (dx, dy) do ponto alvo em relacao ao centro da referencia."""
-    return ponto_alvo[0] - ponto_centro[0], ponto_alvo[1] - ponto_centro[1]
-
-
 def medir_desvio(master: tk.Misc, ao_concluir: Callable[[tuple[int, int] | None], None]) -> None:
-    """Mostra a tela congelada para medir o desvio. 1o clique: centro da referencia.
-    2o clique: ponto desejado. Enter aceita e devolve (dx, dy); Esc cancela (devolve None).
-    Um 3o clique recomeca a medicao."""
+    """Mostra a tela congelada para medir um desvio.
+
+    1o clique: centro da referencia. 2o clique: ponto desejado.
+    Enter aceita e devolve (dx, dy); Esc cancela (devolve None). Um 3o clique recomeca.
+    """
     tela = pyautogui.screenshot()
-    largura, altura = tela.size
-
-    janela = tk.Toplevel(master)
-    janela.overrideredirect(True)
-    janela.geometry(f"{largura}x{altura}+0+0")
-    janela.attributes("-topmost", True)
-
-    foto = ImageTk.PhotoImage(tela)
-    canvas = tk.Canvas(janela, width=largura, height=altura, highlightthickness=0, cursor="crosshair")
-    canvas.pack()
-    canvas.create_image(0, 0, anchor="nw", image=foto)
-    canvas.create_text(
-        20, 20, anchor="nw", fill="yellow", font=("Segoe UI", 14, "bold"),
-        text="1o clique: centro da referencia. 2o clique: ponto desejado. Enter aceita, Esc cancela.",
+    janela, canvas, _foto = _janela_tela_cheia(
+        master,
+        tela,
+        "1o clique: centro da referencia. 2o clique: ponto desejado. Enter aceita, Esc cancela.",
     )
-    janela.foto = foto  # mantem a referencia viva enquanto a janela existir
-
     pontos: list[tuple[int, int]] = []
 
     def desenhar_cruz(x: int, y: int, cor: str):
@@ -131,3 +102,20 @@ def medir_desvio(master: tk.Misc, ao_concluir: Callable[[tuple[int, int] | None]
     canvas.bind("<Escape>", cancelar)
     janela.focus_force()
     canvas.focus_set()
+
+
+def _janela_tela_cheia(master: tk.Misc, tela: Image.Image, dica: str):
+    """Janela sem borda, do tamanho da tela, com a captura de fundo e uma dica no canto."""
+    largura, altura = tela.size
+    janela = tk.Toplevel(master)
+    janela.overrideredirect(True)
+    janela.geometry(f"{largura}x{altura}+0+0")
+    janela.attributes("-topmost", True)
+
+    foto = ImageTk.PhotoImage(tela)
+    canvas = tk.Canvas(janela, width=largura, height=altura, highlightthickness=0, cursor="crosshair")
+    canvas.pack()
+    canvas.create_image(0, 0, anchor="nw", image=foto)
+    canvas.create_text(20, 20, anchor="nw", fill="yellow", font=("Segoe UI", 14, "bold"), text=dica)
+    janela.foto = foto  # mantem a referencia viva enquanto a janela existir
+    return janela, canvas, foto

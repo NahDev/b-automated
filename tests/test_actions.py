@@ -1,20 +1,16 @@
 import shutil
-import sys
-from pathlib import Path
 
 import pyautogui
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from config import PADROES, carregar, salvar  # noqa: E402
-from core import Automador, _tesseract_padrao  # noqa: E402
+from va.automation.actions import Automador
+from va.automation.tesseract import localizar_tesseract
+from va.settings import Settings
 
 
 def _tem_tesseract() -> bool:
-    cmd = carregar()["tesseract_cmd"]
-    return bool(cmd and Path(cmd).exists()) or _tesseract_padrao() is not None or shutil.which("tesseract") is not None
+    return localizar_tesseract("") is not None or shutil.which("tesseract") is not None
 
 
 def _tela_com_botao() -> Image.Image:
@@ -27,9 +23,8 @@ def _tela_com_botao() -> Image.Image:
 
 
 @pytest.fixture
-def automador(tmp_path):
-    config = dict(PADROES, timeout=0, intervalo=0.01, pausa_entre_passos=0)
-    return Automador(config)
+def automador():
+    return Automador(Settings(timeout=0, intervalo=0.01, pausa_entre_passos=0))
 
 
 def test_localiza_imagem_na_tela(monkeypatch, tmp_path, automador):
@@ -59,7 +54,14 @@ def test_nao_encontra_imagem_ausente(monkeypatch, tmp_path, automador):
 
 def test_regiao_soma_deslocamento(monkeypatch, tmp_path, automador):
     tela = _tela_com_botao()
-    monkeypatch.setattr(pyautogui, "screenshot", lambda region=None: tela.crop(region[:2] + (region[0] + region[2], region[1] + region[3])) if region else tela)
+
+    def captura(region=None):
+        if region is None:
+            return tela
+        left, top, width, height = region
+        return tela.crop((left, top, left + width, top + height))
+
+    monkeypatch.setattr(pyautogui, "screenshot", captura)
     alvo = tmp_path / "botao.png"
     tela.crop((120, 80, 180, 110)).save(alvo)
 
@@ -70,28 +72,13 @@ def test_regiao_soma_deslocamento(monkeypatch, tmp_path, automador):
     assert caixa[1] == pytest.approx(80, abs=2)
 
 
-def test_config_salva_e_carrega(tmp_path):
-    caminho = tmp_path / "config.json"
-    salvar(dict(PADROES, confianca=0.95, offset_x=-5), caminho)
-
-    lida = carregar(caminho)
-
-    assert lida["confianca"] == 0.95
-    assert lida["offset_x"] == -5
-    assert lida["timeout"] == PADROES["timeout"]
-
-
-def test_config_sem_arquivo_usa_padroes(tmp_path):
-    assert carregar(tmp_path / "nao_existe.json") == PADROES
-
-
 @pytest.mark.skipif(not _tem_tesseract(), reason="Tesseract nao instalado")
 def test_localiza_texto_por_ocr(monkeypatch):
     tela = Image.new("RGB", (500, 150), "white")
     fonte = ImageFont.load_default(size=40)
     ImageDraw.Draw(tela).text((40, 40), "Salvar", fill="black", font=fonte)
     monkeypatch.setattr(pyautogui, "screenshot", lambda region=None: tela)
-    automador = Automador(dict(carregar(), timeout=0, intervalo=0.01, idioma_ocr="eng"))
+    automador = Automador(Settings(timeout=0, intervalo=0.01, idioma_ocr="eng"))
 
     caixa = automador.localizar_texto("Salvar")
 

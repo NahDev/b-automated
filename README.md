@@ -79,11 +79,16 @@ O resultado fica em `dist\VisualAutomator\`. Ele inclui o Tesseract e os idiomas
 
 ## Estrutura
 
-- `app.py`: interface principal.
-- `captura.py`, `janela_teste.py`, `laboratorio.py`: telas de captura, teste de localização e laboratório.
-- `core.py`: busca por imagem e por texto, cliques e digitação.
-- `exportador.py`: geração do código estruturado em `saida/`.
-- `config.py`, `registro.py`: configurações padrão e log em arquivo.
-- `build_exe.ps1`: gera o executável com PyInstaller.
+O código é dividido em camadas. A interface (`va/ui`) só chama os serviços; a regra de negócio não depende do Tkinter.
+
+- `app.py`: ponto de entrada.
+- `va/settings.py`: configurações imutáveis, salvas em `config.json`.
+- `va/automation/`: busca de imagens e textos (`vision.py`, `tesseract.py`), ações de clique e teclado (`actions.py`) e execução de roteiros (`runner.py`).
+- `va/export/`: geração do código em `saida/` (`generator.py`), nomes válidos (`naming.py`), leitura e escrita dos prints e das ações (`storage.py`).
+- `va/biblioteca.py`: guarda, lista e apaga os prints.
+- `va/geometria.py`: cálculos de escala e de desvio, sem interface.
+- `va/ui/`: telas Tkinter. `app.py` monta as abas; cada aba fica em seu arquivo.
+- `va/logs.py`, `va/paths.py`: log em arquivo e pastas do programa (funcionam também no `.exe`).
 - `tessdata/`: idiomas do OCR (`eng` e `por`).
-- `tests/`: testes automatizados.
+- `tests/`: testes por camada. Rodam sem abrir a janela, exceto pela checagem de interface.
+- `build_exe.ps1`: gera o executável com PyInstaller.

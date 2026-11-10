@@ -1,20 +1,12 @@
 import ast
-import sys
-from pathlib import Path
 
 import pytest
 from PIL import Image
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from config import PADROES  # noqa: E402
-from exportador import (  # noqa: E402
-    gerar_codigo,
-    gravar_acao,
-    identificador,
-    identificador_modulo,
-    nome_classe,
-)
+from va.export.generator import gerar_codigo
+from va.export.naming import identificador, identificador_modulo, nome_classe
+from va.export.storage import gravar_acao
+from va.settings import Settings
 
 
 def test_identificador_remove_acentos_e_simbolos():
@@ -39,7 +31,7 @@ def test_nome_classe_em_camel_case():
     assert nome_classe("tela_de_login") == "TelaDeLogin"
 
 
-def _criar_pasta_de_prints(raiz: Path) -> None:
+def _criar_pasta_de_prints(raiz):
     pasta = raiz / "src" / "static" / "images" / "login"
     pasta.mkdir(parents=True)
     Image.new("RGB", (20, 10), "blue").save(pasta / "botao_entrar.png")
@@ -51,7 +43,7 @@ def _criar_pasta_de_prints(raiz: Path) -> None:
 def test_gera_constantes_e_automacao(tmp_path):
     _criar_pasta_de_prints(tmp_path)
 
-    gerar_codigo(tmp_path, dict(PADROES))
+    gerar_codigo(tmp_path, Settings())
 
     constantes = (tmp_path / "src" / "template_constants.py").read_text(encoding="utf-8")
     assert "class Login:" in constantes
@@ -66,7 +58,7 @@ def test_gera_constantes_e_automacao(tmp_path):
 def test_codigo_gerado_tem_sintaxe_valida(tmp_path):
     _criar_pasta_de_prints(tmp_path)
 
-    gerar_codigo(tmp_path, dict(PADROES))
+    gerar_codigo(tmp_path, Settings())
 
     arquivos = list((tmp_path / "src").rglob("*.py"))
     assert arquivos
@@ -77,7 +69,7 @@ def test_codigo_gerado_tem_sintaxe_valida(tmp_path):
 def test_config_gerada_usa_valores_do_app(tmp_path):
     _criar_pasta_de_prints(tmp_path)
 
-    gerar_codigo(tmp_path, dict(PADROES, confianca=0.91, offset_x=-4))
+    gerar_codigo(tmp_path, Settings(confianca=0.91, offset_x=-4))
 
     config = (tmp_path / "src" / "automation" / "config.py").read_text(encoding="utf-8")
     assert "'confianca': 0.91," in config

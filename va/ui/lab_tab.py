@@ -1,45 +1,28 @@
-"""Laboratorio: ajusta o desvio padrao do clique olhando o print com uma cruz no centro.
-
-O desvio e medido em pixels a partir do centro do print. Clicar fora do print tambem vale.
-"""
+"""Aba Laboratorio: ajusta o desvio padrao do clique olhando o print com uma cruz no centro."""
 
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageTk
 
+from va.geometria import desvio_do_clique, escala_para, ponto_no_canvas
+
+if TYPE_CHECKING:
+    from va.ui.app import App
+
 TAMANHO_CANVAS = (760, 520)
-MARGEM = 80  # espaco livre ao redor do print, para clicar fora dele
 COR_FUNDO = "#1f2937"
 COR_CRUZ = "#ef4444"
 COR_DESVIO = "#facc15"
 
 
-def escala_para(largura: int, altura: int, canvas_w: int, canvas_h: int, margem: int = MARGEM) -> float:
-    """Reduz o print so se ele nao couber no canvas com a margem. Nunca amplia."""
-    cabe_w = (canvas_w - 2 * margem) / largura
-    cabe_h = (canvas_h - 2 * margem) / altura
-    return max(min(1.0, cabe_w, cabe_h), 0.01)
-
-
-def desvio_do_clique(x: float, y: float, canvas_w: int, canvas_h: int, escala: float) -> tuple[int, int]:
-    """Converte um ponto do canvas em desvio (dx, dy) em pixels reais, a partir do centro."""
-    return round((x - canvas_w / 2) / escala), round((y - canvas_h / 2) / escala)
-
-
-def ponto_no_canvas(dx: int, dy: int, canvas_w: int, canvas_h: int, escala: float) -> tuple[float, float]:
-    return canvas_w / 2 + dx * escala, canvas_h / 2 + dy * escala
-
-
 class AbaLaboratorio(ttk.Frame):
-    def __init__(self, master, pasta_imagens, desvio_atual, ao_salvar_desvio, medir_na_tela):
+    def __init__(self, master: tk.Misc, app: "App"):
         super().__init__(master, padding=10)
-        self._pasta_imagens = pasta_imagens
-        self._desvio_atual = desvio_atual
-        self._ao_salvar = ao_salvar_desvio
-        self._medir_na_tela = medir_na_tela
-        self._imagem = None
-        self._foto = None
+        self.app = app
+        self._imagem: Image.Image | None = None
+        self._foto: ImageTk.PhotoImage | None = None
         self._escala = 1.0
         self._var_imagem = tk.StringVar()
         self._var_dx = tk.StringVar(value="0")
@@ -47,9 +30,9 @@ class AbaLaboratorio(ttk.Frame):
         self._montar()
         self._var_dx.trace_add("write", lambda *_: self._atualizar_marcador())
         self._var_dy.trace_add("write", lambda *_: self._atualizar_marcador())
-        self._mostrar_atual()
+        self.mostrar_atual()
 
-    def _montar(self):
+    def _montar(self) -> None:
         topo = ttk.Frame(self)
         topo.pack(fill="x")
         ttk.Label(topo, text="Print").pack(side="left")
@@ -61,9 +44,7 @@ class AbaLaboratorio(ttk.Frame):
         corpo.pack(fill="both", expand=True, pady=(8, 0))
 
         largura, altura = TAMANHO_CANVAS
-        self.canvas = tk.Canvas(
-            corpo, width=largura, height=altura, bg=COR_FUNDO, highlightthickness=0, cursor="crosshair"
-        )
+        self.canvas = tk.Canvas(corpo, width=largura, height=altura, bg=COR_FUNDO, highlightthickness=0, cursor="crosshair")
         self.canvas.pack(side="left")
         self.canvas.bind("<Button-1>", self._clicar)
 
@@ -98,40 +79,43 @@ class AbaLaboratorio(ttk.Frame):
             self._var_imagem.set(nomes[0] if nomes else "")
         self._carregar()
 
-    def zerar(self):
-        self._var_dx.set("0")
-        self._var_dy.set("0")
+    def mostrar_atual(self) -> None:
+        settings = self.app.settings
+        self.label_atual.configure(text=f"Desvio padrao atual: dx={settings.offset_x}, dy={settings.offset_y}")
 
-    def medir(self):
-        """Abre a tela para medir o desvio com dois cliques; o resultado preenche dx e dy."""
-        self._medir_na_tela(self.preencher)
-
-    def preencher(self, dx: int, dy: int):
+    def preencher(self, dx: int, dy: int) -> None:
         self._var_dx.set(str(dx))
         self._var_dy.set(str(dy))
 
-    def salvar(self):
+    def zerar(self) -> None:
+        self.preencher(0, 0)
+
+    def medir(self) -> None:
+        """Abre a tela para medir o desvio com dois cliques; o resultado preenche dx e dy."""
+        self.app.medir_na_tela(self.preencher)
+
+    def salvar(self) -> None:
         desvio = self._lerdesvio()
         if desvio is None:
-            messagebox.showwarning("Valor invalido", "Use numeros inteiros em dx e dy.", parent=self)
+            messagebox.showwarning("Valor invalido", "Use numeros inteiros em dx e dy.", parent=self.app)
             return
-        self._ao_salvar(*desvio)
-        self._mostrar_atual()
+        self.app.salvar_desvio_padrao(*desvio)
+        self.mostrar_atual()
 
-    def _carregar(self):
+    def _carregar(self) -> None:
         self.canvas.delete("all")
         self._foto = None
         self._imagem = None
         nome = self._var_imagem.get()
         if nome:
-            with Image.open(self._pasta_imagens() / nome) as arquivo:
+            with Image.open(self.app.biblioteca.caminho(nome)) as arquivo:
                 self._imagem = arquivo.convert("RGB")
         if self._imagem is not None:
             self._desenhar_imagem()
         self._desenhar_cruz()
         self._atualizar_marcador()
 
-    def _desenhar_imagem(self):
+    def _desenhar_imagem(self) -> None:
         largura, altura = self._imagem.size
         cw, ch = TAMANHO_CANVAS
         self._escala = escala_para(largura, altura, cw, ch)
@@ -148,19 +132,18 @@ class AbaLaboratorio(ttk.Frame):
             dash=(4, 4),
         )
 
-    def _desenhar_cruz(self):
+    def _desenhar_cruz(self) -> None:
         cw, ch = TAMANHO_CANVAS
         self.canvas.create_line(cw / 2, 0, cw / 2, ch, fill=COR_CRUZ, width=1)
         self.canvas.create_line(0, ch / 2, cw, ch / 2, fill=COR_CRUZ, width=1)
         self.canvas.create_oval(cw / 2 - 4, ch / 2 - 4, cw / 2 + 4, ch / 2 + 4, outline=COR_CRUZ, width=2)
 
-    def _clicar(self, evento):
+    def _clicar(self, evento) -> None:
         cw, ch = TAMANHO_CANVAS
         dx, dy = desvio_do_clique(evento.x, evento.y, cw, ch, self._escala)
-        self._var_dx.set(str(dx))
-        self._var_dy.set(str(dy))
+        self.preencher(dx, dy)
 
-    def _atualizar_marcador(self):
+    def _atualizar_marcador(self) -> None:
         self.canvas.delete("marcador")
         desvio = self._lerdesvio()
         if desvio is None:
@@ -171,14 +154,8 @@ class AbaLaboratorio(ttk.Frame):
         x, y = ponto_no_canvas(dx, dy, cw, ch, self._escala)
         self.canvas.create_line(cw / 2, ch / 2, x, y, fill=COR_DESVIO, dash=(4, 3), tags="marcador")
         self.canvas.create_oval(x - 6, y - 6, x + 6, y + 6, fill=COR_DESVIO, outline="", tags="marcador")
-        self.canvas.create_text(
-            x + 10, y - 10, anchor="sw", fill=COR_DESVIO, text=f"{dx}, {dy}", tags="marcador"
-        )
+        self.canvas.create_text(x + 10, y - 10, anchor="sw", fill=COR_DESVIO, text=f"{dx}, {dy}", tags="marcador")
         self.label_escolhido.configure(text=f"Escolhido: dx={dx}, dy={dy}")
-
-    def _mostrar_atual(self):
-        dx, dy = self._desvio_atual()
-        self.label_atual.configure(text=f"Desvio padrao atual: dx={dx}, dy={dy}")
 
     def _lerdesvio(self) -> tuple[int, int] | None:
         try:

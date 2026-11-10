@@ -1,12 +1,7 @@
-import sys
-from pathlib import Path
-
 import pytest
 from PIL import Image, ImageDraw
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from core import buscar_ocorrencias  # noqa: E402
+from va.automation.vision import Ocorrencia, buscar_ocorrencias
 
 
 def _botao(linha):
@@ -36,22 +31,30 @@ def test_encontra_todas_as_ocorrencias_iguais(cenario):
 
     ocorrencias, _ = buscar_ocorrencias(tela, caminho, confianca=0.95)
 
-    posicoes = sorted((x, y) for x, y, _, _, _ in ocorrencias)
-    assert posicoes == [(30, 30), (200, 120)]
+    assert sorted((o.x, o.y) for o in ocorrencias) == [(30, 30), (200, 120)]
 
 
-def test_ocorrencias_vem_com_tamanho_e_confianca(cenario):
+def test_ocorrencias_trazem_tamanho_e_confianca(cenario):
     tela, caminho = cenario
 
     ocorrencias, _ = buscar_ocorrencias(tela, caminho, confianca=0.95)
 
-    for _, _, largura, altura, score in ocorrencias:
-        assert (largura, altura) == (60, 30)
-        assert score >= 0.95
+    for ocorrencia in ocorrencias:
+        assert (ocorrencia.largura, ocorrencia.altura) == (60, 30)
+        assert ocorrencia.confianca >= 0.95
 
 
-def test_melhor_semelhanca_mesmo_abaixo_do_limite(cenario):
+def test_centro_da_ocorrencia(cenario):
     tela, caminho = cenario
+
+    ocorrencias, _ = buscar_ocorrencias(tela, caminho, confianca=0.95)
+
+    assert Ocorrencia(30, 30, 60, 30, 1.0).centro == (60, 45)
+    assert all(o.centro == (o.x + 30, o.y + 15) for o in ocorrencias)
+
+
+def test_melhor_semelhanca_mesmo_abaixo_do_limite(cenario, tmp_path):
+    _, caminho = cenario
     so_parecido = Image.new("RGB", (400, 200), "white")
     so_parecido.paste(_botao((10, 20, 50, 10)), (300, 30))
 
@@ -59,9 +62,8 @@ def test_melhor_semelhanca_mesmo_abaixo_do_limite(cenario):
 
     assert ocorrencias == []
     assert melhor is not None
-    score, x, y, largura, altura = melhor
-    assert score < 0.95
-    assert abs(x - 300) <= 2 and abs(y - 30) <= 2
+    assert melhor.confianca < 0.95
+    assert abs(melhor.x - 300) <= 2 and abs(melhor.y - 30) <= 2
 
 
 def test_sem_ocorrencia_quando_o_print_nao_existe_na_tela(tmp_path):

@@ -1,9 +1,4 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from laboratorio import desvio_do_clique, escala_para, ponto_no_canvas  # noqa: E402
+from va.geometria import desvio_do_clique, desvio_entre, escala_para, ponto_no_canvas
 
 
 def test_escala_nao_amplia_print_pequeno():
@@ -30,3 +25,11 @@ def test_desvio_respeita_a_escala():
 def test_ida_e_volta_entre_desvio_e_ponto():
     x, y = ponto_no_canvas(-30, 12, 760, 520, 0.5)
     assert desvio_do_clique(x, y, 760, 520, 0.5) == (-30, 12)
+
+
+def test_desvio_entre_dois_cliques_na_tela():
+    assert desvio_entre((100, 200), (130, 190)) == (30, -10)
+
+
+def test_desvio_zero_quando_os_cliques_coincidem():
+    assert desvio_entre((50, 50), (50, 50)) == (0, 0)

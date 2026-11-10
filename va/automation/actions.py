@@ -1,26 +1,20 @@
-"""Acoes de automacao no estilo SikuliX: achar por imagem ou por texto (OCR), clicar e digitar."""
+"""Acoes de automacao: achar imagem ou texto na tela, clicar e digitar."""
 
-import os
 import time
 from pathlib import Path
 
-import cv2
-import numpy as np
 import pyautogui
 import pyperclip
 import pyscreeze
 import pytesseract
-from PIL import Image
 
-from config import BASE_DIR, carregar
-from exportador import pasta_imagens
-
-pyautogui.FAILSAFE = True  # mouse no canto superior esquerdo aborta a automacao
-pyautogui.PAUSE = 0.05
+from va.automation.tesseract import configurar_ocr
+from va.paths import BASE_DIR, pasta_imagens
+from va.settings import Settings
 
 Caixa = tuple[int, int, int, int]  # (left, top, width, height)
 
-ACOES = [
+ACOES_ROTEIRO = (
     "clicar_imagem",
     "esperar_imagem",
     "clicar_texto",
@@ -28,37 +22,20 @@ ACOES = [
     "digitar",
     "tecla",
     "esperar_segundos",
-]
-
-
-TESSERACT_PADRAO = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
-
-
-def _tesseract_padrao() -> str | None:
-    """Tesseract empacotado ao lado do programa, ou instalado na pasta padrao do Windows."""
-    for caminho in (BASE_DIR / "tesseract" / "tesseract.exe", TESSERACT_PADRAO):
-        if caminho.exists():
-            return str(caminho)
-    return None
+)
 
 
 class ElementoNaoEncontrado(Exception):
-    pass
+    """O alvo de um passo nao apareceu dentro do tempo de espera."""
 
 
 class Automador:
-    def __init__(self, config: dict | None = None):
-        self.config = config or carregar()
-        tesseract = self.config["tesseract_cmd"]
-        if not (tesseract and Path(tesseract).exists()):
-            tesseract = _tesseract_padrao() or tesseract
-        if tesseract:
-            pytesseract.pytesseract.tesseract_cmd = tesseract
-        pasta_tessdata = BASE_DIR / self.config["pasta_tessdata"]
-        if pasta_tessdata.is_dir():
-            # Usa os idiomas do projeto (ex: por.traineddata) em vez da pasta do Tesseract
-            os.environ["TESSDATA_PREFIX"] = str(pasta_tessdata)
-        self.pasta_saida = BASE_DIR / self.config["pasta_saida"]
+    def __init__(self, settings: Settings):
+        pyautogui.FAILSAFE = True  # mouse no canto superior esquerdo aborta a automacao
+        pyautogui.PAUSE = 0.05
+        self.settings = settings
+        configurar_ocr(settings)
+        self.pasta_saida = BASE_DIR / settings.pasta_saida
         self.pasta_imagens = pasta_imagens(self.pasta_saida)
 
     def caminho_imagem(self, nome: str) -> Path:
@@ -70,14 +47,12 @@ class Automador:
     def localizar_imagem(self, imagem: str, regiao: Caixa | None = None, confianca: float | None = None) -> Caixa | None:
         """Procura a imagem na tela agora, tentando os niveis de confianca em ordem."""
         caminho = str(self.caminho_imagem(imagem))
-        nivel = self.config["confianca"] if confianca is None else confianca
-        niveis = [nivel, *self.config["niveis_confianca_fallback"]]
+        nivel = self.settings.confianca if confianca is None else confianca
+        niveis = [nivel, *self.settings.niveis_confianca_fallback]
         tela = pyautogui.screenshot(region=regiao)
         for confianca_atual in niveis:
             try:
-                caixa = pyscreeze.locate(
-                    caminho, tela, confidence=confianca_atual, grayscale=self.config["escala_cinza"]
-                )
+                caixa = pyscreeze.locate(caminho, tela, confidence=confianca_atual, grayscale=self.settings.escala_cinza)
             except pyscreeze.ImageNotFoundException:
                 caixa = None
             if caixa is not None:
@@ -91,9 +66,9 @@ class Automador:
         return self._esperar(lambda: self.localizar_imagem(imagem, regiao), timeout)
 
     def clicar_centro(self, caixa: Caixa, botao: str = "left", cliques: int = 1) -> None:
-        x = caixa[0] + caixa[2] // 2 + self.config["offset_x"]
-        y = caixa[1] + caixa[3] // 2 + self.config["offset_y"]
-        pyautogui.moveTo(x, y, duration=self.config["duracao_movimento"])
+        x = caixa[0] + caixa[2] // 2 + self.settings.offset_x
+        y = caixa[1] + caixa[3] // 2 + self.settings.offset_y
+        pyautogui.moveTo(x, y, duration=self.settings.duracao_movimento)
         pyautogui.click(x=x, y=y, clicks=cliques, button=botao)
 
     def digitar(self, texto: str) -> None:
@@ -130,27 +105,27 @@ class Automador:
             time.sleep(float(valor or alvo))
         else:
             raise ValueError(f"Acao desconhecida: {acao}")
-        time.sleep(self.config["pausa_entre_passos"])
+        time.sleep(self.settings.pausa_entre_passos)
 
     def _esperar(self, buscar, timeout: float | None):
-        limite = time.monotonic() + (self.config["timeout"] if timeout is None else timeout)
+        limite = time.monotonic() + (self.settings.timeout if timeout is None else timeout)
         while True:
             caixa = buscar()
             if caixa is not None:
                 return caixa
             if time.monotonic() >= limite:
                 return None
-            time.sleep(self.config["intervalo"])
+            time.sleep(self.settings.intervalo)
 
     def _buscar_texto(self, texto: str, regiao: Caixa | None) -> Caixa | None:
-        """OCR da tela; casa sequencias de palavras (contem, sem diferenciar maiusculas)."""
+        """OCR da tela; casa sequencias de palavras, sem diferenciar maiusculas."""
         partes = texto.lower().split()
         if not partes:
             return None
         tela = pyautogui.screenshot(region=regiao)
         # psm 11 = texto esparso: acha palavras soltas na tela inteira (o modo padrao perde textos grandes entre outros elementos)
         dados = pytesseract.image_to_data(
-            tela, lang=self.config["idioma_ocr"], config="--psm 11", output_type=pytesseract.Output.DICT
+            tela, lang=self.settings.idioma_ocr, config="--psm 11", output_type=pytesseract.Output.DICT
         )
         indices = [i for i, palavra in enumerate(dados["text"]) if palavra.strip()]
         for inicio in range(len(indices) - len(partes) + 1):
@@ -169,37 +144,3 @@ class Automador:
         if regiao is None:
             return caixa
         return (caixa[0] + regiao[0], caixa[1] + regiao[1], caixa[2], caixa[3])
-
-
-def buscar_ocorrencias(
-    tela: Image.Image, caminho: Path, confianca: float, escala_cinza: bool = True, limite: int = 50
-) -> tuple[list[tuple[int, int, int, int, float]], tuple[float, int, int, int, int] | None]:
-    """Acha todas as ocorrencias do print em `tela` com confianca >= `confianca`.
-
-    Devolve (ocorrencias, melhor):
-    - ocorrencias: [(x, y, largura, altura, confianca)], da mais parecida para a menos.
-    - melhor: (confianca, x, y, largura, altura) da melhor semelhanca, mesmo abaixo do limite.
-      None se o print nao couber na tela ou nao tiver variacao para comparar.
-    """
-    modo = "L" if escala_cinza else "RGB"
-    imagem_tela = np.array(tela.convert(modo))
-    alvo = np.array(Image.open(caminho).convert(modo))
-    altura, largura = alvo.shape[:2]
-    if altura > imagem_tela.shape[0] or largura > imagem_tela.shape[1] or alvo.std() == 0:
-        return [], None
-
-    res = cv2.matchTemplate(imagem_tela, alvo, cv2.TM_CCOEFF_NORMED)
-    res = np.nan_to_num(res, nan=0.0, posinf=0.0, neginf=0.0)
-    y_melhor, x_melhor = np.unravel_index(np.argmax(res), res.shape)
-    melhor = (float(res[y_melhor, x_melhor]), int(x_melhor), int(y_melhor), largura, altura)
-
-    ys, xs = np.where(res >= confianca)
-    candidatos = sorted(zip(res[ys, xs].tolist(), xs.tolist(), ys.tolist()), reverse=True)
-    escolhidos: list[tuple[int, int, float]] = []
-    for score, x, y in candidatos:
-        # Ignora posicoes que se sobrepoem a uma ocorrencia ja escolhida (mesmo botao)
-        if all(abs(x - ex) >= largura / 2 or abs(y - ey) >= altura / 2 for ex, ey, _ in escolhidos):
-            escolhidos.append((x, y, score))
-            if len(escolhidos) == limite:
-                break
-    return [(x, y, largura, altura, score) for x, y, score in escolhidos], melhor
