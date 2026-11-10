@@ -1,0 +1,13 @@
+# Ambiente e caches
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Saidas de build e de execucao (geradas, nao versionar)
+build/
+dist/
+*.spec
+logs/
+config.json
+saida/
+imagens/
