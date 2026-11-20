@@ -7,10 +7,11 @@ Testado com Python 3.14 no Windows 11.
 ## O que tem
 
 - **Capturar:** tire prints de uma região da tela (botão ou F9). Cada print vai para um módulo (página) com nome e ação padrão.
-- **Código gerado:** a pasta `saida/src` recebe `template_constants.py`, `automation/perform_action.py`, `automation/config.py` e `services/<modulo>.py`, prontos para copiar para outro projeto.
-- **Testar na tela:** mostra todas as ocorrências do print, com índice e confiança. Você escolhe uma para clicar e pode ajustar a confiança.
+- **Código gerado:** a pasta `saida/src` recebe `template_constants.py`, `automation/perform_action.py`, `automation/config.py` e `services/<modulo>.py`. Também é gerado `saida/INTEGRACAO.md`, com onde colar cada arquivo.
+- **Exportar projeto...:** copia `src/` e o `INTEGRACAO.md` para a pasta de um projeto. **Código do módulo...** mostra o trecho e o arquivo de um módulo, com botões de copiar.
+- **Testar na tela e medir:** ficam na aba Laboratório. "Testar na tela" mostra as ocorrências do print. "Medir ancorado" pede o quadrado do print e o ponto do clique na tela congelada, e calcula o desvio a partir do centro do quadrado.
 - **Roteiro:** monta passos (clicar imagem, clicar texto, esperar imagem ou texto, digitar, tecla, esperar segundos), salva e abre em JSON e executa.
-- **Laboratório:** ajusta o desvio padrão do clique (dx, dy). Mede o desvio com dois cliques na tela.
+- **Laboratório:** ajusta o desvio padrão do clique (dx, dy), com a cruz no centro do print.
 - **Configurações:** padrões de confiança, tempos de espera, desvios, pastas e idioma do OCR. Ficam em `config.json`.
 
 ## Instalação

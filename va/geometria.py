@@ -22,3 +22,8 @@ def ponto_no_canvas(dx: int, dy: int, canvas_w: int, canvas_h: int, escala: floa
 def desvio_entre(ponto_centro: tuple[int, int], ponto_alvo: tuple[int, int]) -> tuple[int, int]:
     """Desvio (dx, dy) do ponto alvo em relacao ao centro da referencia."""
     return ponto_alvo[0] - ponto_centro[0], ponto_alvo[1] - ponto_centro[1]
+
+
+def posicao_centralizada(largura: int, altura: int, tela_w: int, tela_h: int) -> tuple[int, int]:
+    """Canto superior esquerdo para uma janela de `largura` x `altura` ficar no centro da tela."""
+    return max((tela_w - largura) // 2, 0), max((tela_h - altura) // 2, 0)

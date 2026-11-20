@@ -1,4 +1,8 @@
-"""Aba Laboratorio: ajusta o desvio padrao do clique olhando o print com uma cruz no centro."""
+"""Aba Laboratorio: ajusta o desvio padrao do clique olhando o print com uma cruz no centro.
+
+Tambem testa o print na tela e mede o desvio de forma ancorada: o quadrado do print e o ponto do clique,
+ambos escolhidos na tela congelada.
+"""
 
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -7,6 +11,7 @@ from typing import TYPE_CHECKING
 from PIL import Image, ImageTk
 
 from va.geometria import desvio_do_clique, escala_para, ponto_no_canvas
+from va.ui.locate_window import JanelaTesteLocalizacao
 
 if TYPE_CHECKING:
     from va.ui.app import App
@@ -65,10 +70,16 @@ class AbaLaboratorio(ttk.Frame):
         self.label_atual.pack(anchor="w")
         self.label_escolhido = ttk.Label(painel, text="")
         self.label_escolhido.pack(anchor="w", pady=(4, 12))
+
+        acoes = ttk.LabelFrame(painel, text="Testar e medir", padding=8)
+        acoes.pack(fill="x")
+        ttk.Button(acoes, text="Testar na tela", command=self.testar).pack(fill="x", pady=2)
+        ttk.Button(acoes, text="Medir ancorado (quadrado + clique)", command=self.medir_ancorado).pack(fill="x", pady=2)
+        ttk.Button(acoes, text="Medir na tela (2 cliques)", command=self.medir).pack(fill="x", pady=2)
+
         botoes = ttk.Frame(painel)
-        botoes.pack(anchor="w")
+        botoes.pack(anchor="w", pady=(12, 0))
         ttk.Button(botoes, text="Zerar", command=self.zerar).pack(side="left")
-        ttk.Button(botoes, text="Medir na tela", command=self.medir).pack(side="left", padx=(8, 0))
         ttk.Button(botoes, text="Salvar como desvio padrao", command=self.salvar).pack(side="left", padx=(8, 0))
 
     def atualizar_imagens(self, nomes: list[str], selecionar: str | None = None) -> None:
@@ -90,9 +101,21 @@ class AbaLaboratorio(ttk.Frame):
     def zerar(self) -> None:
         self.preencher(0, 0)
 
+    def testar(self) -> None:
+        """Procura o print escolhido na tela e mostra as ocorrencias para escolher uma."""
+        nome = self._var_imagem.get()
+        if not nome:
+            messagebox.showinfo("Sem print", "Escolha um print na lista acima.", parent=self.app)
+            return
+        JanelaTesteLocalizacao(self.app, nome)
+
     def medir(self) -> None:
-        """Abre a tela para medir o desvio com dois cliques; o resultado preenche dx e dy."""
+        """Mede o desvio com dois cliques: centro da referencia e ponto do clique."""
         self.app.medir_na_tela(self.preencher)
+
+    def medir_ancorado(self) -> None:
+        """Mede o desvio a partir do quadrado escolhido na tela; pode salvar o quadrado como print."""
+        self.app.medir_ancorado(self._fim_medicao_ancorada)
 
     def salvar(self) -> None:
         desvio = self._lerdesvio()
@@ -101,6 +124,14 @@ class AbaLaboratorio(ttk.Frame):
             return
         self.app.salvar_desvio_padrao(*desvio)
         self.mostrar_atual()
+
+    def _fim_medicao_ancorada(self, recorte: Image.Image | None, desvio: tuple[int, int] | None) -> None:
+        if desvio is not None:
+            self.preencher(*desvio)
+        if recorte is not None and messagebox.askyesno(
+            "Salvar print", "Salvar o quadrado selecionado como print?", parent=self.app
+        ):
+            self.app.salvar_print(recorte)
 
     def _carregar(self) -> None:
         self.canvas.delete("all")

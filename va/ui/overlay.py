@@ -104,6 +104,91 @@ def medir_desvio(master: tk.Misc, ao_concluir: Callable[[tuple[int, int] | None]
     canvas.focus_set()
 
 
+def medir_ancorado(
+    master: tk.Misc, ao_concluir: Callable[[Image.Image | None, tuple[int, int] | None], None]
+) -> None:
+    """Tela congelada em duas etapas: 1) arraste o quadrado do print; 2) clique no ponto do clique.
+
+    O desvio e o ponto do clique medido a partir do centro do quadrado, o mesmo centro usado
+    ao clicar. Enter aceita e devolve (recorte, desvio); Esc cancela e devolve (None, None).
+    Um clique extra depois do ponto recomeca a medicao.
+    """
+    tela = pyautogui.screenshot()
+    janela, canvas, _foto = _janela_tela_cheia(
+        master, tela, "1) Arraste o quadrado do print. 2) Clique no ponto do clique. Enter aceita, Esc cancela."
+    )
+    estado: dict = {}
+
+    def recomecar() -> None:
+        canvas.delete("medicao")
+        estado.clear()
+        estado.update(inicio=None, retangulo=None, quadrado=None, ponto=None)
+
+    recomecar()
+
+    def centro_do_quadrado() -> tuple[int, int]:
+        x0, y0, x1, y1 = estado["quadrado"]
+        return x0 + (x1 - x0) // 2, y0 + (y1 - y0) // 2
+
+    def desenhar_ponto(x: int, y: int) -> None:
+        cx, cy = centro_do_quadrado()
+        dx, dy = desvio_entre((cx, cy), (x, y))
+        canvas.create_line(cx, cy, x, y, fill="yellow", width=2, dash=(6, 4), tags="medicao")
+        canvas.create_line(x - 12, y, x + 12, y, fill="red", width=2, tags="medicao")
+        canvas.create_line(x, y - 12, x, y + 12, fill="red", width=2, tags="medicao")
+        canvas.create_text(x + 14, y + 14, anchor="nw", fill="yellow", font=("Segoe UI", 14, "bold"),
+                           text=f"dx={dx}  dy={dy}   (Enter aceita)", tags="medicao")
+
+    def ao_pressionar(evento) -> None:
+        if estado["quadrado"] is None:
+            estado["inicio"] = (evento.x, evento.y)
+            estado["retangulo"] = canvas.create_rectangle(
+                evento.x, evento.y, evento.x, evento.y, outline="red", width=2, tags="medicao"
+            )
+        elif estado["ponto"] is None:
+            estado["ponto"] = (evento.x, evento.y)
+            desenhar_ponto(evento.x, evento.y)
+        else:
+            recomecar()
+            ao_pressionar(evento)
+
+    def ao_arrastar(evento) -> None:
+        if estado["quadrado"] is None and estado["retangulo"] is not None:
+            x0, y0 = estado["inicio"]
+            canvas.coords(estado["retangulo"], x0, y0, evento.x, evento.y)
+
+    def ao_soltar(evento) -> None:
+        if estado["quadrado"] is not None or estado["inicio"] is None:
+            return
+        x0, x1 = sorted((estado["inicio"][0], evento.x))
+        y0, y1 = sorted((estado["inicio"][1], evento.y))
+        if x1 - x0 < 3 or y1 - y0 < 3:
+            recomecar()
+            return
+        estado["quadrado"] = (x0, y0, x1, y1)
+        estado["inicio"] = None
+
+    def aceitar(_evento=None) -> None:
+        if estado["quadrado"] is None or estado["ponto"] is None:
+            return
+        desvio = desvio_entre(centro_do_quadrado(), estado["ponto"])
+        recorte = tela.crop(estado["quadrado"])
+        janela.destroy()
+        ao_concluir(recorte, desvio)
+
+    def cancelar(_evento=None) -> None:
+        janela.destroy()
+        ao_concluir(None, None)
+
+    canvas.bind("<ButtonPress-1>", ao_pressionar)
+    canvas.bind("<B1-Motion>", ao_arrastar)
+    canvas.bind("<ButtonRelease-1>", ao_soltar)
+    janela.bind("<Return>", aceitar)
+    janela.bind("<Escape>", cancelar)
+    janela.focus_force()
+    canvas.focus_set()
+
+
 def _janela_tela_cheia(master: tk.Misc, tela: Image.Image, dica: str):
     """Janela sem borda, do tamanho da tela, com a captura de fundo e uma dica no canto."""
     largura, altura = tela.size

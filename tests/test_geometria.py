@@ -1,4 +1,12 @@
-from va.geometria import desvio_do_clique, desvio_entre, escala_para, ponto_no_canvas
+from va.geometria import desvio_do_clique, desvio_entre, escala_para, posicao_centralizada, ponto_no_canvas
+
+
+def test_janela_centralizada_na_tela():
+    assert posicao_centralizada(400, 300, 1920, 1080) == (760, 390)
+
+
+def test_janela_maior_que_a_tela_fica_no_canto():
+    assert posicao_centralizada(2000, 1200, 1920, 1080) == (0, 0)
 
 
 def test_escala_nao_amplia_print_pequeno():

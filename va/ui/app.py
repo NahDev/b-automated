@@ -5,8 +5,11 @@ dela e atualiza as telas. As abas nao guardam configuracao propria.
 """
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
 from typing import Callable
+
+from PIL import Image
 
 from va.automation.actions import Automador
 from va.biblioteca import Biblioteca
@@ -15,8 +18,10 @@ from va.logs import configurar as configurar_registro
 from va.logs import logger
 from va.settings import Settings
 from va.ui.capture_tab import CapturaTab
+from va.ui.dialogs import aviso_temporario, pedir_dados_print
 from va.ui.dpi import ativar_dpi
 from va.ui.lab_tab import AbaLaboratorio
+from va.ui.overlay import medir_ancorado as abrir_medicao_ancorada
 from va.ui.overlay import medir_desvio
 from va.ui.script_tab import RoteiroTab
 from va.ui.settings_tab import ConfigTab
@@ -32,6 +37,7 @@ class App(tk.Tk):
         self.settings = Settings.carregar()
         self.automador = Automador(self.settings)
         self.biblioteca = Biblioteca(self.automador.pasta_saida)
+        self.ultimo_modulo = ""
 
         self.bind("<F9>", lambda _evento: self.captura.capturar())
 
@@ -66,6 +72,36 @@ class App(tk.Tk):
         self.aplicar_settings(self.settings.alterar(offset_x=dx, offset_y=dy))
         self.registrar(f"Desvio padrao salvo: dx={dx}, dy={dy}")
 
+    def salvar_print(self, imagem: Image.Image) -> None:
+        """Pergunta modulo, nome e acao no centro da tela e guarda o print."""
+        dados = pedir_dados_print(self, self.biblioteca.modulos(), self.ultimo_modulo)
+        if dados is None:
+            return
+        modulo, nome, acao = dados
+        if self.biblioteca.existe(modulo, nome) and not messagebox.askyesno(
+            "Substituir", f"'{modulo}/{nome}.png' ja existe. Substituir?", parent=self
+        ):
+            return
+        self.biblioteca.salvar(imagem, modulo, nome, acao)
+        self.ultimo_modulo = modulo
+        self.gerar_codigo()
+        self.captura.atualizar_lista(selecionar=f"{modulo}/{nome}.png")
+        aviso_temporario(self, f"Print salvo: {modulo}/{nome}.png")
+
+    def exportar_projeto(self) -> None:
+        """Copia src/ e o guia de integracao para a pasta de um projeto."""
+        destino = filedialog.askdirectory(parent=self, title="Pasta do projeto onde o codigo vai ser colado")
+        if not destino:
+            return
+        self.gerar_codigo()
+        try:
+            self.biblioteca.exportar(Path(destino))
+        except OSError as erro:
+            messagebox.showerror("Exportar projeto", str(erro), parent=self)
+            return
+        self.registrar(f"Codigo exportado para {destino}")
+        aviso_temporario(self, "Projeto exportado")
+
     def gerar_codigo(self) -> None:
         try:
             self.biblioteca.gerar_codigo(self.settings)
@@ -76,6 +112,11 @@ class App(tk.Tk):
         """Esconde o app e mede um desvio com dois cliques na tela congelada."""
         self.withdraw()
         self.after(300, lambda: medir_desvio(self, lambda desvio: self._fim_medicao(desvio, ao_concluir)))
+
+    def medir_ancorado(self, ao_concluir: Callable[[Image.Image | None, tuple[int, int] | None], None]) -> None:
+        """Esconde o app e mede o desvio a partir do quadrado escolhido na tela."""
+        self.withdraw()
+        self.after(300, lambda: abrir_medicao_ancorada(self, lambda recorte, desvio: self._fim_medicao_ancorada(recorte, desvio, ao_concluir)))
 
     def registrar(self, mensagem: str) -> None:
         self.roteiro.log(mensagem)
@@ -89,6 +130,10 @@ class App(tk.Tk):
         self.deiconify()
         if desvio is not None:
             ao_concluir(*desvio)
+
+    def _fim_medicao_ancorada(self, recorte, desvio, ao_concluir) -> None:
+        self.deiconify()
+        ao_concluir(recorte, desvio)
 
 
 def main() -> None:
