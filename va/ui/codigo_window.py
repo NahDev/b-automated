@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
+from va.export.roteiro import CodigoRoteiro
 from va.ui.dialogs import aviso_temporario
 
 if TYPE_CHECKING:
@@ -60,6 +61,34 @@ class CodigoWindow(tk.Toplevel):
     def _copiar(self, texto: tk.Text) -> None:
         self.clipboard_clear()
         self.clipboard_append(texto.get("1.0", "end-1c"))
+        aviso_temporario(self, "Copiado", ms=900)
+
+
+class CodigoRoteiroWindow(tk.Toplevel):
+    """Mostra a funcao gerada para um roteiro, com aviso dos passos que ficam so no app."""
+
+    def __init__(self, app: "App", resultado: CodigoRoteiro):
+        super().__init__(app)
+        self.title("Codigo do roteiro")
+        self.geometry("860x560")
+        self.transient(app)
+        if resultado.nao_exportados:
+            aviso = "Passos sem equivalente no projeto (ficam so no app): " + "; ".join(resultado.nao_exportados)
+        else:
+            aviso = "Todos os passos foram exportados."
+        ttk.Label(self, text=aviso, padding=10, wraplength=820, justify="left").pack(anchor="w")
+
+        texto = tk.Text(self, wrap="none", font=("Consolas", 10))
+        texto.pack(fill="both", expand=True, padx=10)
+        texto.insert("1.0", resultado.codigo)
+        texto.configure(state="disabled")
+
+        self._codigo = resultado.codigo
+        ttk.Button(self, text="Copiar", command=self._copiar).pack(anchor="e", padx=10, pady=8)
+
+    def _copiar(self) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(self._codigo)
         aviso_temporario(self, "Copiado", ms=900)
 
 

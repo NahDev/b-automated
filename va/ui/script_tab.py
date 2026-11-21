@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 
 from va.automation.actions import ACOES_ROTEIRO
 from va.automation.runner import Passo, Runner
+from va.export.roteiro import codigo_roteiro
 from va.paths import BASE_DIR
+from va.ui.codigo_window import CodigoRoteiroWindow
 
 if TYPE_CHECKING:
     from va.ui.app import App
@@ -74,6 +76,13 @@ class RoteiroTab(ttk.Frame):
         ).pack(side="left", padx=8)
         ttk.Label(controles, text="Mouse no canto superior esquerdo interrompe tudo.", foreground="gray").pack(side="left", padx=8)
 
+        codigo = ttk.Frame(self)
+        codigo.pack(fill="x", pady=(8, 0))
+        ttk.Label(codigo, text="Nome da funcao").pack(side="left")
+        self.var_funcao = tk.StringVar(value="meu_roteiro")
+        ttk.Entry(codigo, textvariable=self.var_funcao, width=20).pack(side="left", padx=8)
+        ttk.Button(codigo, text="Gerar codigo do roteiro", command=self.gerar_codigo_roteiro).pack(side="left")
+
         self.texto_log = tk.Text(self, height=8, state="disabled", wrap="word")
         self.texto_log.pack(fill="both", expand=False, pady=(8, 0))
 
@@ -94,6 +103,18 @@ class RoteiroTab(ttk.Frame):
         self.texto_log.insert(tk.END, mensagem + "\n")
         self.texto_log.see(tk.END)
         self.texto_log.configure(state="disabled")
+
+    def gerar_codigo_roteiro(self) -> None:
+        """Mostra a funcao Python equivalente ao roteiro, para copiar para o projeto."""
+        if not self.passos:
+            messagebox.showinfo("Roteiro vazio", "Adicione passos antes de gerar o codigo.", parent=self.app)
+            return
+        try:
+            resultado = codigo_roteiro(self.passos, self.var_funcao.get())
+        except ValueError as erro:
+            messagebox.showwarning("Nome invalido", str(erro), parent=self.app)
+            return
+        CodigoRoteiroWindow(self.app, resultado)
 
     def _executar_passo(self, passo: Passo) -> None:
         self.app.automador.executar(passo.acao, passo.alvo, passo.valor)
