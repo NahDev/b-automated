@@ -9,6 +9,7 @@ import pyscreeze
 import pytesseract
 
 from va.automation.tesseract import configurar_ocr
+from va.export.storage import ler_metadados, offset_de
 from va.paths import BASE_DIR, pasta_imagens
 from va.settings import Settings
 
@@ -65,9 +66,13 @@ class Automador:
     def esperar_imagem(self, imagem: str, timeout: float | None = None, regiao: Caixa | None = None) -> Caixa | None:
         return self._esperar(lambda: self.localizar_imagem(imagem, regiao), timeout)
 
-    def clicar_centro(self, caixa: Caixa, botao: str = "left", cliques: int = 1) -> None:
-        x = caixa[0] + caixa[2] // 2 + self.settings.offset_x
-        y = caixa[1] + caixa[3] // 2 + self.settings.offset_y
+    def clicar_centro(
+        self, caixa: Caixa, botao: str = "left", cliques: int = 1, desvio: tuple[int, int] | None = None
+    ) -> None:
+        """Clica no centro da caixa, deslocado por `desvio` (ou pelo desvio padrao das configuracoes)."""
+        dx, dy = desvio if desvio is not None else (self.settings.offset_x, self.settings.offset_y)
+        x = caixa[0] + caixa[2] // 2 + dx
+        y = caixa[1] + caixa[3] // 2 + dy
         pyautogui.moveTo(x, y, duration=self.settings.duracao_movimento)
         pyautogui.click(x=x, y=y, clicks=cliques, button=botao)
 
@@ -85,7 +90,7 @@ class Automador:
             caixa = self.esperar_imagem(alvo, timeout)
             if caixa is None:
                 raise ElementoNaoEncontrado(f"Imagem nao encontrada: {alvo}")
-            self.clicar_centro(caixa)
+            self.clicar_centro(caixa, desvio=self._desvio_do_print(alvo))
         elif acao == "esperar_imagem":
             if self.esperar_imagem(alvo, timeout) is None:
                 raise ElementoNaoEncontrado(f"Imagem nao apareceu: {alvo}")
@@ -106,6 +111,11 @@ class Automador:
         else:
             raise ValueError(f"Acao desconhecida: {acao}")
         time.sleep(self.settings.pausa_entre_passos)
+
+    def _desvio_do_print(self, alvo: str) -> tuple[int, int] | None:
+        """Desvio proprio do print usado no passo, se ele tiver um."""
+        caminho = self.caminho_imagem(alvo)
+        return offset_de(ler_metadados(caminho.parent).get(caminho.stem, {}))
 
     def _esperar(self, buscar, timeout: float | None):
         limite = time.monotonic() + (self.settings.timeout if timeout is None else timeout)

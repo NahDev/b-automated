@@ -54,7 +54,8 @@ class JanelaTesteLocalizacao(tk.Toplevel):
             return
         centro_x, centro_y = self._ocorrencias[int(selecao[0])].centro
         settings = self._app.settings
-        ponto = (centro_x + settings.offset_x, centro_y + settings.offset_y)
+        dx, dy = self._app.biblioteca.desvio_do_print(self._nome) or (settings.offset_x, settings.offset_y)
+        ponto = (centro_x + dx, centro_y + dy)
         self.withdraw()
         self._app.withdraw()
         self.after(400, lambda: self._executar_clique(ponto))

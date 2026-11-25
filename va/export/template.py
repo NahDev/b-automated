@@ -40,9 +40,10 @@ def _localizar(caminho, regiao=None, confianca=None):
     return None
 
 
-def perform_action(imagem, acao="clicar", timeout=None, regiao=None, confianca=None):
+def perform_action(imagem, acao="clicar", timeout=None, regiao=None, confianca=None, offset=None):
     """Localiza `imagem` (caminho relativo a raiz do projeto) e executa `acao`.
 
+    `offset` e o desvio (dx, dy) deste print; se for None, usa o desvio padrao de config.py.
     Retorna o ponto (x, y) clicado, ou a caixa encontrada quando a acao e "esperar".
     Levanta ImagemNaoEncontrada se a imagem nao aparecer dentro do timeout.
     """
@@ -60,8 +61,9 @@ def perform_action(imagem, acao="clicar", timeout=None, regiao=None, confianca=N
         raise ImagemNaoEncontrada(f"Imagem nao encontrada: {imagem}")
     if acao == "esperar":
         return caixa
-    x = caixa[0] + caixa[2] // 2 + CONFIG_AUTOMACAO["offset_x"]
-    y = caixa[1] + caixa[3] // 2 + CONFIG_AUTOMACAO["offset_y"]
+    dx, dy = offset if offset is not None else (CONFIG_AUTOMACAO["offset_x"], CONFIG_AUTOMACAO["offset_y"])
+    x = caixa[0] + caixa[2] // 2 + dx
+    y = caixa[1] + caixa[3] // 2 + dy
     pyautogui.moveTo(x, y, duration=CONFIG_AUTOMACAO["duracao_movimento"])
     if acao == "clicar_duplo":
         pyautogui.doubleClick(x, y)

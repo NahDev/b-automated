@@ -14,7 +14,7 @@ Estrutura gerada dentro da pasta de saida (e o que o dev copia para o projeto):
 from pathlib import Path
 
 from va.export.naming import nome_classe
-from va.export.storage import ACOES_DISPONIVEIS, ACOES_PADRAO, escrever, ler_acoes, listar_modulos
+from va.export.storage import ACOES_DISPONIVEIS, ACOES_PADRAO, escrever, ler_metadados, listar_modulos, offset_de
 from va.export.template import MODELO_PERFORM_ACTION
 from va.paths import pasta_imagens
 from va.settings import Settings
@@ -38,7 +38,7 @@ def gerar_codigo(pasta_saida: Path, settings: Settings) -> None:
     """Regenera todo o codigo e o guia de integracao a partir das pastas de imagens."""
     raiz = pasta_imagens(pasta_saida)
     modulos = listar_modulos(pasta_saida)
-    acoes = {modulo: ler_acoes(raiz / modulo) for modulo in modulos}
+    metadados = {modulo: ler_metadados(raiz / modulo) for modulo in modulos}
     src = pasta_saida / "src"
     automacao = src / "automation"
     servicos = src / "services"
@@ -50,8 +50,8 @@ def gerar_codigo(pasta_saida: Path, settings: Settings) -> None:
     escrever(src / "template_constants.py", _codigo_constantes(modulos))
     escrever(servicos / "__init__.py", "")
     for modulo, nomes in modulos.items():
-        escrever(servicos / f"{modulo}.py", codigo_servico(modulo, nomes, acoes[modulo]))
-    escrever(pasta_saida / GUIA, guia_integracao(modulos, acoes))
+        escrever(servicos / f"{modulo}.py", codigo_servico(modulo, nomes, metadados[modulo]))
+    escrever(pasta_saida / GUIA, guia_integracao(modulos, metadados))
 
 
 def trecho_constantes(modulo: str, nomes: list[str]) -> str:
@@ -59,7 +59,7 @@ def trecho_constantes(modulo: str, nomes: list[str]) -> str:
     return _linhas_classe(modulo, nomes) + "\n"
 
 
-def codigo_servico(modulo: str, nomes: list[str], acoes: dict[str, str]) -> str:
+def codigo_servico(modulo: str, nomes: list[str], metadados: dict[str, dict]) -> str:
     """Arquivo src/services/<modulo>.py: cada print vira uma funcao que chama perform_action."""
     classe = nome_classe(modulo)
     linhas = [
@@ -68,28 +68,30 @@ def codigo_servico(modulo: str, nomes: list[str], acoes: dict[str, str]) -> str:
         "from src.automation.perform_action import perform_action",
         f"from src.template_constants import {classe}",
     ]
-    for funcao, nome, acao in funcoes_do_modulo(nomes, acoes):
+    for funcao, nome, acao in funcoes_do_modulo(nomes, metadados):
+        desvio = offset_de(metadados.get(nome, {}))
+        argumento_desvio = f", offset={desvio!r}" if desvio else ""
         linhas += [
             "",
             "",
             f"def {funcao}(timeout=None):",
-            f'    return perform_action({classe}.{nome.upper()}, acao="{acao}", timeout=timeout)',
+            f'    return perform_action({classe}.{nome.upper()}, acao="{acao}"{argumento_desvio}, timeout=timeout)',
         ]
     return "\n".join(linhas) + "\n"
 
 
-def funcoes_do_modulo(nomes: list[str], acoes: dict[str, str]) -> list[tuple[str, str, str]]:
+def funcoes_do_modulo(nomes: list[str], metadados: dict[str, dict]) -> list[tuple[str, str, str]]:
     """Trios (funcao, print, acao): `clicar_botao_entrar`, `botao_entrar`, `clicar`."""
     trios = []
     for nome in nomes:
-        acao = acoes.get(nome, ACOES_PADRAO)
+        acao = metadados.get(nome, {}).get("acao", ACOES_PADRAO)
         if acao not in ACOES_DISPONIVEIS:
             acao = ACOES_PADRAO
         trios.append((f"{acao}_{nome}", nome, acao))
     return trios
 
 
-def guia_integracao(modulos: dict[str, list[str]], acoes: dict[str, dict[str, str]]) -> str:
+def guia_integracao(modulos: dict[str, list[str]], metadados: dict[str, dict[str, dict]]) -> str:
     """Markdown com onde colar cada arquivo e como chamar as funcoes geradas."""
     linhas = [
         "# Integracao do codigo gerado",
@@ -123,14 +125,16 @@ def guia_integracao(modulos: dict[str, list[str]], acoes: dict[str, dict[str, st
         linhas += [f"### `{modulo}` -> `src/services/{modulo}.py`", ""]
         if not nomes:
             linhas += ["_Sem prints._", ""]
-        for funcao, nome, _acao in funcoes_do_modulo(nomes, acoes[modulo]):
-            linhas.append(f"- `{funcao}(timeout=None)`: usa `src/static/images/{modulo}/{nome}.png`")
+        for funcao, nome, _acao in funcoes_do_modulo(nomes, metadados[modulo]):
+            desvio = offset_de(metadados[modulo].get(nome, {}))
+            sufixo = f" (desvio proprio: dx={desvio[0]}, dy={desvio[1]})" if desvio else ""
+            linhas.append(f"- `{funcao}(timeout=None)`: usa `src/static/images/{modulo}/{nome}.png`{sufixo}")
         if nomes:
             linhas.append("")
 
     if modulos and any(modulos.values()):
         modulo = next(m for m, nomes in modulos.items() if nomes)
-        funcao, _nome, _acao = funcoes_do_modulo(modulos[modulo], acoes[modulo])[0]
+        funcao, _nome, _acao = funcoes_do_modulo(modulos[modulo], metadados[modulo])[0]
         linhas += [
             "## Uso",
             "",

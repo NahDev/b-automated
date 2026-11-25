@@ -102,6 +102,15 @@ class App(tk.Tk):
         self.registrar(f"Codigo exportado para {destino}")
         aviso_temporario(self, "Projeto exportado")
 
+    def salvar_desvio_print(self, nome: str, dx: int | None, dy: int | None) -> None:
+        """Desvio proprio de um print. Com dx None, o print volta a usar o desvio padrao."""
+        self.biblioteca.definir_desvio(nome, dx, dy)
+        self.gerar_codigo()
+        if dx is None:
+            self.registrar(f"Desvio de {nome} removido: usa o desvio padrao.")
+        else:
+            self.registrar(f"Desvio de {nome} salvo: dx={dx}, dy={dy}")
+
     def gerar_codigo(self) -> None:
         try:
             self.biblioteca.gerar_codigo(self.settings)

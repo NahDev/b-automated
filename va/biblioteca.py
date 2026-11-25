@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 
 from va.export.generator import GUIA, codigo_servico, gerar_codigo, trecho_constantes
-from va.export.storage import gravar_acao, ler_acoes, listar_modulos, remover_acao
+from va.export.storage import gravar_acao, gravar_metadado, ler_metadados, listar_modulos, offset_de, remover_acao
 from va.paths import pasta_imagens
 from va.settings import Settings
 
@@ -55,7 +55,17 @@ class Biblioteca:
         """Trecho para colar em template_constants.py e o arquivo src/services/<modulo>.py."""
         pasta = self.pasta_imagens / modulo
         nomes = sorted(arquivo.stem for arquivo in pasta.glob("*.png"))
-        return trecho_constantes(modulo, nomes), codigo_servico(modulo, nomes, ler_acoes(pasta))
+        return trecho_constantes(modulo, nomes), codigo_servico(modulo, nomes, ler_metadados(pasta))
+
+    def desvio_do_print(self, nome: str) -> tuple[int, int] | None:
+        """Desvio proprio do print ('modulo/nome.png'), ou None se ele usa o desvio padrao."""
+        caminho = self.caminho(nome)
+        return offset_de(ler_metadados(caminho.parent).get(caminho.stem, {}))
+
+    def definir_desvio(self, nome: str, dx: int | None, dy: int | None) -> None:
+        """Grava o desvio proprio do print. Com dx ou dy None, o print volta ao desvio padrao."""
+        caminho = self.caminho(nome)
+        gravar_metadado(caminho.parent, caminho.stem, offset_x=dx, offset_y=dy)
 
     def exportar(self, destino: Path) -> Path:
         """Copia src/ e o guia de integracao para a pasta do projeto. Devolve a pasta src do destino.

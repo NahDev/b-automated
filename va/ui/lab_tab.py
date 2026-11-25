@@ -43,7 +43,7 @@ class AbaLaboratorio(ttk.Frame):
         ttk.Label(topo, text="Print").pack(side="left")
         self.combo = ttk.Combobox(topo, textvariable=self._var_imagem, state="readonly", width=40)
         self.combo.pack(side="left", padx=8)
-        self.combo.bind("<<ComboboxSelected>>", lambda _evento: self._carregar())
+        self.combo.bind("<<ComboboxSelected>>", lambda _evento: self._ao_escolher())
 
         corpo = ttk.Frame(self)
         corpo.pack(fill="both", expand=True, pady=(8, 0))
@@ -76,6 +76,13 @@ class AbaLaboratorio(ttk.Frame):
         ttk.Button(acoes, text="Testar na tela", command=self.testar).pack(fill="x", pady=2)
         ttk.Button(acoes, text="Medir ancorado (quadrado + clique)", command=self.medir_ancorado).pack(fill="x", pady=2)
         ttk.Button(acoes, text="Medir na tela (2 cliques)", command=self.medir).pack(fill="x", pady=2)
+
+        por_print = ttk.LabelFrame(painel, text="Desvio deste print", padding=8)
+        por_print.pack(fill="x", pady=(0, 8))
+        self.label_print = ttk.Label(por_print, text="")
+        self.label_print.pack(anchor="w")
+        ttk.Button(por_print, text="Salvar desvio deste print", command=self.salvar_desvio_print).pack(fill="x", pady=2)
+        ttk.Button(por_print, text="Remover (usar o desvio padrao)", command=self.remover_desvio_print).pack(fill="x", pady=2)
 
         botoes = ttk.Frame(painel)
         botoes.pack(anchor="w", pady=(12, 0))
@@ -145,6 +152,40 @@ class AbaLaboratorio(ttk.Frame):
             self._desenhar_imagem()
         self._desenhar_cruz()
         self._atualizar_marcador()
+        self.mostrar_desvio_print()
+
+    def _ao_escolher(self) -> None:
+        """Ao escolher um print, mostra o desvio dele nos campos (se tiver um proprio)."""
+        self._carregar()
+        desvio = self.app.biblioteca.desvio_do_print(self._var_imagem.get()) if self._var_imagem.get() else None
+        if desvio is not None:
+            self.preencher(*desvio)
+
+    def mostrar_desvio_print(self) -> None:
+        nome = self._var_imagem.get()
+        desvio = self.app.biblioteca.desvio_do_print(nome) if nome else None
+        if desvio is None:
+            self.label_print.configure(text="Este print usa o desvio padrao.")
+        else:
+            self.label_print.configure(text=f"Desvio deste print: dx={desvio[0]}, dy={desvio[1]}")
+
+    def salvar_desvio_print(self) -> None:
+        nome = self._var_imagem.get()
+        desvio = self._lerdesvio()
+        if not nome:
+            messagebox.showinfo("Sem print", "Escolha um print na lista acima.", parent=self.app)
+            return
+        if desvio is None:
+            messagebox.showwarning("Valor invalido", "Use numeros inteiros em dx e dy.", parent=self.app)
+            return
+        self.app.salvar_desvio_print(nome, *desvio)
+        self.mostrar_desvio_print()
+
+    def remover_desvio_print(self) -> None:
+        nome = self._var_imagem.get()
+        if nome:
+            self.app.salvar_desvio_print(nome, None, None)
+            self.mostrar_desvio_print()
 
     def _desenhar_imagem(self) -> None:
         largura, altura = self._imagem.size
