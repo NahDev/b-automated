@@ -1,6 +1,7 @@
-"""Biblioteca de prints: guarda, lista e apaga os prints e suas acoes padrao, na pasta de saida."""
+"""Biblioteca de prints: guarda, lista e apaga os prints e seus ajustes, e exporta o codigo para o projeto."""
 
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
@@ -8,7 +9,14 @@ from PIL import Image
 from va.export.generator import GUIA, codigo_servico, gerar_codigo, trecho_constantes
 from va.export.storage import gravar_acao, gravar_metadado, ler_metadados, listar_modulos, offset_de, remover_acao
 from va.paths import pasta_imagens
-from va.settings import Settings
+
+
+@dataclass(frozen=True)
+class Exportacao:
+    """O que foi copiado para o projeto e o que ja existia nele e foi mantido."""
+
+    copiados: tuple[str, ...]
+    ignorados: tuple[str, ...]
 
 
 class Biblioteca:
@@ -48,11 +56,11 @@ class Biblioteca:
         caminho.unlink()
         remover_acao(caminho.parent, caminho.stem)
 
-    def gerar_codigo(self, settings: Settings) -> None:
-        gerar_codigo(self.pasta_saida, settings)
+    def gerar_codigo(self) -> None:
+        gerar_codigo(self.pasta_saida)
 
     def codigo_do_modulo(self, modulo: str) -> tuple[str, str]:
-        """Trecho para colar em template_constants.py e o arquivo src/services/<modulo>.py."""
+        """Classe de constantes da pagina e o arquivo src/services/<modulo>.py."""
         pasta = self.pasta_imagens / modulo
         nomes = sorted(arquivo.stem for arquivo in pasta.glob("*.png"))
         return trecho_constantes(modulo, nomes), codigo_servico(modulo, nomes, ler_metadados(pasta))
@@ -67,14 +75,28 @@ class Biblioteca:
         caminho = self.caminho(nome)
         gravar_metadado(caminho.parent, caminho.stem, offset_x=dx, offset_y=dy)
 
-    def exportar(self, destino: Path) -> Path:
-        """Copia src/ e o guia de integracao para a pasta do projeto. Devolve a pasta src do destino.
+    def exportar(self, destino: Path) -> Exportacao:
+        """Copia para a pasta do projeto os prints e os servicos gerados.
 
-        Arquivos que ja existem no destino sao substituidos; os demais ficam como estao.
+        Nada que ja existe no projeto e substituido: esses arquivos aparecem em `ignorados`
+        e precisam ser colados a mao (os metodos do servico, por exemplo).
         """
         origem = self.pasta_saida / "src"
         if not origem.exists():
             raise FileNotFoundError("Nada para exportar: capture um print primeiro.")
-        shutil.copytree(origem, destino / "src", dirs_exist_ok=True)
-        shutil.copy2(self.pasta_saida / GUIA, destino / GUIA)
-        return destino / "src"
+        copiados, ignorados = [], []
+        arquivos = [*origem.glob("static/images/*/*.png"), *origem.glob("services/*.py")]
+        for arquivo in arquivos:
+            if arquivo.name == "__init__.py":
+                continue
+            relativo = arquivo.relative_to(origem)
+            alvo = destino / "src" / relativo
+            if alvo.exists():
+                ignorados.append(relativo.as_posix())
+                continue
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(arquivo, alvo)
+            copiados.append(relativo.as_posix())
+        if not (destino / GUIA).exists():
+            shutil.copy2(self.pasta_saida / GUIA, destino / GUIA)
+        return Exportacao(tuple(sorted(copiados)), tuple(sorted(ignorados)))

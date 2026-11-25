@@ -109,8 +109,14 @@ class RoteiroTab(ttk.Frame):
         if not self.passos:
             messagebox.showinfo("Roteiro vazio", "Adicione passos antes de gerar o codigo.", parent=self.app)
             return
+        desvios: dict[str, tuple[int, int]] = {}
+        for passo in self.passos:
+            if passo.acao in ("clicar_imagem", "esperar_imagem") and "/" in passo.alvo:
+                desvio = self.app.biblioteca.desvio_do_print(passo.alvo)
+                if desvio is not None:
+                    desvios[passo.alvo] = desvio
         try:
-            resultado = codigo_roteiro(self.passos, self.var_funcao.get())
+            resultado = codigo_roteiro(self.passos, self.var_funcao.get(), desvios)
         except ValueError as erro:
             messagebox.showwarning("Nome invalido", str(erro), parent=self.app)
             return

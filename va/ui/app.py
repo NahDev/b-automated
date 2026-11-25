@@ -95,12 +95,21 @@ class App(tk.Tk):
             return
         self.gerar_codigo()
         try:
-            self.biblioteca.exportar(Path(destino))
+            resultado = self.biblioteca.exportar(Path(destino))
         except OSError as erro:
             messagebox.showerror("Exportar projeto", str(erro), parent=self)
             return
-        self.registrar(f"Codigo exportado para {destino}")
-        aviso_temporario(self, "Projeto exportado")
+        self.registrar(f"Exportado para {destino}: {len(resultado.copiados)} arquivo(s) novos.")
+        if resultado.ignorados:
+            messagebox.showinfo(
+                "Exportar projeto",
+                "Ja existiam no projeto e nao foram substituidos:\n\n"
+                + "\n".join(resultado.ignorados)
+                + "\n\nCole os metodos deles a mao, usando o botao Codigo do modulo.",
+                parent=self,
+            )
+        else:
+            aviso_temporario(self, f"Projeto exportado: {len(resultado.copiados)} arquivo(s)")
 
     def salvar_desvio_print(self, nome: str, dx: int | None, dy: int | None) -> None:
         """Desvio proprio de um print. Com dx None, o print volta a usar o desvio padrao."""
@@ -113,7 +122,7 @@ class App(tk.Tk):
 
     def gerar_codigo(self) -> None:
         try:
-            self.biblioteca.gerar_codigo(self.settings)
+            self.biblioteca.gerar_codigo()
         except OSError as erro:
             self.registrar(f"Falha ao gerar o codigo: {erro}")
 

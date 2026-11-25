@@ -1,17 +1,23 @@
-"""Gera o codigo Python de um roteiro, para o dev colar no projeto.
+"""Gera o codigo Python de um roteiro no padrao do projeto (API de src/libs/automation.py).
 
-Cada passo vira uma linha equivalente:
-- prints viram `perform_action` com a constante do modulo (ex: `Login.BOTAO_ENTRAR`);
-- digitar, teclas e esperas viram chamadas de `pyautogui` e `time`.
+Cada passo vira uma chamada da API do projeto:
+- clicar/esperar imagem: perform_action ou find_element com a constante da pagina (ex: CheckOrderPage.BOTAO).
+  Se o print tem desvio proprio, o clique usa ClickOffsetCommand com esse desvio;
+- digitar: writer (aceita acentos); tecla: press_key, ou pyautogui.hotkey para combinacoes;
+- esperar_segundos: time.sleep.
 
-Passos que dependem do OCR do app (clicar_texto, esperar_texto) nao tem equivalente no projeto:
-ficam como comentario e sao devolvidos em `nao_exportados`, para o app avisar o usuario.
+Passos de OCR (clicar_texto, esperar_texto) nao tem equivalente no projeto: ficam como comentario
+e sao devolvidos em `nao_exportados`.
 """
 
 from dataclasses import dataclass
 
 from va.automation.runner import Passo
-from va.export.naming import identificador, nome_classe
+from va.export.naming import classe_pagina, identificador
+
+# Tipos de importacao usados pelos passos: ("libs", nome), ("constantes", classe),
+# ("excecao", nome), ("modulo", nome) para `import nome`.
+Importacao = tuple[str, str]
 
 
 @dataclass(frozen=True)
@@ -23,85 +29,98 @@ class CodigoRoteiro:
 @dataclass(frozen=True)
 class _Linha:
     texto: str
-    imports: frozenset[str] = frozenset()
-    classe: str | None = None  # classe de template_constants usada por esta linha
+    importacoes: frozenset[Importacao] = frozenset()
 
 
-def codigo_roteiro(passos: list[Passo], nome: str) -> CodigoRoteiro:
-    """Funcao `roteiro_<nome>` com os passos em ordem. Levanta ValueError se o nome for invalido."""
+def codigo_roteiro(
+    passos: list[Passo], nome: str, desvios: dict[str, tuple[int, int]] | None = None
+) -> CodigoRoteiro:
+    """Funcao `roteiro_<nome>` com os passos em ordem.
+
+    `desvios` mapeia o alvo de um passo ('modulo/nome.png') para o desvio proprio do print.
+    Levanta ValueError se o nome for invalido.
+    """
+    desvios = desvios or {}
     funcao = f"roteiro_{identificador(nome)}"
     corpo: list[str] = []
     nao_exportados: list[str] = []
-    imports: set[str] = set()
-    classes: set[str] = set()
+    importacoes: set[Importacao] = set()
     for passo in passos:
-        linha = _traduzir(passo)
+        linha = _traduzir(passo, desvios.get(passo.alvo))
         if linha is None:
             descricao = _descrever(passo)
             nao_exportados.append(descricao)
             corpo.append(f"    # nao exportado (depende do app): {descricao}")
             continue
-        imports |= linha.imports
-        if linha.classe is not None:
-            classes.add(linha.classe)
+        importacoes |= linha.importacoes
         corpo += [f"    {trecho}" for trecho in linha.texto.split("\n")]
     if not corpo:
         corpo = ["    pass"]
-    return CodigoRoteiro(_montar(funcao, corpo, imports, classes), tuple(nao_exportados))
+    return CodigoRoteiro(_montar(funcao, corpo, importacoes), tuple(nao_exportados))
 
 
-def _montar(funcao: str, corpo: list[str], imports: set[str], classes: set[str]) -> str:
-    biblioteca_padrao = ["import time"] if "time" in imports else []
-    terceiros = [f"import {modulo}" for modulo in ("pyautogui", "pyperclip") if modulo in imports]
+def _montar(funcao: str, corpo: list[str], importacoes: set[Importacao]) -> str:
+    padrao = [f"import {nome}" for tipo, nome in sorted(importacoes) if tipo == "modulo" and nome == "time"]
+    terceiros = [f"import {nome}" for tipo, nome in sorted(importacoes) if tipo == "modulo" and nome == "pyautogui"]
     locais = []
-    if "perform_action" in imports:
-        locais.append("from src.automation.perform_action import perform_action")
-    locais += [f"from src.template_constants import {classe}" for classe in sorted(classes)]
+    classes = sorted(nome for tipo, nome in importacoes if tipo == "constantes")
+    if classes:
+        locais.append(f"from src.configs.template_constants import {', '.join(classes)}")
+    if ("excecao", "ElementNotFound") in importacoes:
+        locais.append("from src.exceptions.exceptions import ElementNotFound")
+    libs = sorted(nome for tipo, nome in importacoes if tipo == "libs")
+    if libs:
+        locais.append(f"from src.libs.automation import {', '.join(libs)}")
 
     blocos = ['"""Roteiro gerado pelo Visual Automator. Nao edite: gere de novo pela aba Roteiro."""']
-    blocos += ["\n".join(grupo) for grupo in (biblioteca_padrao, terceiros, locais) if grupo]
+    blocos += ["\n".join(grupo) for grupo in (padrao, terceiros, locais) if grupo]
     cabecalho = "\n\n".join(blocos)
     return f'{cabecalho}\n\n\ndef {funcao}(timeout=None):\n    """Passos do roteiro {funcao}."""\n' + "\n".join(corpo) + "\n"
 
 
-def _traduzir(passo: Passo) -> _Linha | None:
+def _traduzir(passo: Passo, desvio: tuple[int, int] | None) -> _Linha | None:
     if passo.acao in ("clicar_imagem", "esperar_imagem"):
-        return _linha_imagem(passo)
+        return _linha_imagem(passo, desvio)
     if passo.acao == "digitar":
         texto = passo.valor or passo.alvo
-        if texto.isascii():
-            return _Linha(f"pyautogui.write({texto!r}, interval=0.02)", frozenset({"pyautogui"}))
-        return _Linha(
-            f"pyperclip.copy({texto!r})\npyautogui.hotkey('ctrl', 'v')",
-            frozenset({"pyautogui", "pyperclip"}),
-        )
+        return _Linha(f"writer({texto!r})", frozenset({("libs", "writer")}))
     if passo.acao == "tecla":
         teclas = [parte.strip() for parte in passo.alvo.split("+") if parte.strip()]
         if not teclas:
             return None
-        return _Linha(f"pyautogui.hotkey({', '.join(repr(tecla) for tecla in teclas)})", frozenset({"pyautogui"}))
+        if len(teclas) == 1:
+            return _Linha(f"press_key({teclas[0]!r})", frozenset({("libs", "press_key")}))
+        return _Linha(f"pyautogui.hotkey({', '.join(repr(tecla) for tecla in teclas)})", frozenset({("modulo", "pyautogui")}))
     if passo.acao == "esperar_segundos":
         try:
             segundos = float(passo.valor or passo.alvo)
         except ValueError:
             return None
-        return _Linha(f"time.sleep({segundos!r})", frozenset({"time"}))
+        return _Linha(f"time.sleep({segundos!r})", frozenset({("modulo", "time")}))
     return None
 
 
-def _linha_imagem(passo: Passo) -> _Linha | None:
+def _linha_imagem(passo: Passo, desvio: tuple[int, int] | None) -> _Linha | None:
     partes = passo.alvo.split("/")
     if len(partes) != 2 or not partes[1].endswith(".png"):
         return None
     modulo, arquivo = partes
-    nome = arquivo[: -len(".png")]
-    acao = "clicar" if passo.acao == "clicar_imagem" else "esperar"
-    classe = nome_classe(modulo)
-    return _Linha(
-        f'perform_action({classe}.{nome.upper()}, acao="{acao}", timeout=timeout)',
-        frozenset({"perform_action"}),
-        classe,
-    )
+    alvo = f"{classe_pagina(modulo)}.{arquivo[: -len('.png')].upper()}"
+    importacoes = {("constantes", classe_pagina(modulo))}
+
+    if passo.acao == "esperar_imagem":
+        mensagem = f"Imagem nao apareceu: {passo.alvo}"
+        texto = f"if not find_element(template_path={alvo}):\n    raise ElementNotFound({mensagem!r})"
+        importacoes |= {("libs", "find_element"), ("excecao", "ElementNotFound")}
+        return _Linha(texto, frozenset(importacoes))
+
+    if desvio is not None:
+        comando = f"ClickOffsetCommand(dx={desvio[0]}, dy={desvio[1]})"
+        importacoes |= {("libs", "perform_action"), ("libs", "ClickOffsetCommand")}
+    else:
+        comando = "ClickCommand()"
+        importacoes |= {("libs", "perform_action"), ("libs", "ClickCommand")}
+    return _Linha(f"perform_action(template_name={alvo}, command={comando})", frozenset(importacoes))
 
 
 def _descrever(passo: Passo) -> str:

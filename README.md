@@ -7,8 +7,9 @@ Testado com Python 3.14 no Windows 11.
 ## O que tem
 
 - **Capturar:** tire prints de uma região da tela (botão ou F9). Cada print vai para um módulo (página) com nome e ação padrão.
-- **Código gerado:** a pasta `saida/src` recebe `template_constants.py`, `automation/perform_action.py`, `automation/config.py` e `services/<modulo>.py`. Também é gerado `saida/INTEGRACAO.md`, com onde colar cada arquivo.
-- **Exportar projeto...:** copia `src/` e o `INTEGRACAO.md` para a pasta de um projeto. **Código do módulo...** mostra o trecho e o arquivo de um módulo, com botões de copiar.
+- **Código gerado no padrão do projeto:** cada página vira `src/services/<modulo>.py`, com uma classe `<Modulo>Service` e um método por print, usando `src.libs.automation` (`perform_action`, `ClickCommand`, `ClickOffsetCommand`, `find_element`). A classe de constantes `<Modulo>Page(_BasePaths)` vai para o `INTEGRACAO.md`, para colar em `src/configs/template_constants.py`.
+- **Desvio por print no código:** o desvio próprio de um print vira `ClickOffsetCommand(dx, dy)` no método dele.
+- **Exportar projeto...:** copia para a pasta do projeto os prints e os serviços que ainda não existem. Arquivos que já existem não são substituídos e aparecem numa lista. **Código do módulo...** mostra a classe de constantes e o arquivo do serviço, com botões de copiar.
 - **Testar na tela e medir:** ficam na aba Laboratório. "Testar na tela" mostra as ocorrências do print. "Medir ancorado" pede o quadrado do print e o ponto do clique na tela congelada, e calcula o desvio a partir do centro do quadrado.
 - **Roteiro:** monta passos (clicar imagem, clicar texto, esperar imagem ou texto, digitar, tecla, esperar segundos), salva e abre em JSON e executa. "Gerar codigo do roteiro" mostra a função Python equivalente para colar no projeto. Passos de OCR (clicar texto, esperar texto) não têm equivalente no projeto: ficam de fora e são listados no aviso.
 - **Laboratório:** ajusta o desvio do clique (dx, dy), com a cruz no centro do print. Cada print pode ter desvio próprio ("Salvar desvio deste print"); quem não tem usa o desvio padrão. O desvio próprio vai para o código gerado (`perform_action(..., offset=(dx, dy))`) e vale também para o roteiro e para o teste na tela.

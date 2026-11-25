@@ -29,3 +29,13 @@ def identificador_modulo(texto: str) -> str:
 
 def nome_classe(modulo: str) -> str:
     return "".join(parte.capitalize() for parte in modulo.split("_") if parte)
+
+
+def classe_pagina(modulo: str) -> str:
+    """Classe de constantes da pagina no projeto: `check_order` -> `CheckOrderPage`."""
+    return f"{nome_classe(modulo)}Page"
+
+
+def classe_servico(modulo: str) -> str:
+    """Classe do servico da pagina no projeto: `check_order` -> `CheckOrderService`."""
+    return f"{nome_classe(modulo)}Service"

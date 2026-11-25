@@ -35,10 +35,10 @@ class CodigoWindow(tk.Toplevel):
         ).pack(side="left", padx=12)
 
         self._texto_trecho = self._bloco(
-            "1) Cole este trecho dentro de src/template_constants.py (ou substitua o arquivo gerado)"
+            "1) Cole esta classe em src/configs/template_constants.py, depois de _BasePaths"
         )
         self._texto_arquivo = self._bloco(
-            "2) Arquivo src/services/<modulo>.py: crie se nao existir; substitua se ja existir"
+            "2) Arquivo src/services/<modulo>.py: crie se nao existir; se ja existir, cole so os metodos na classe"
         )
         self._mostrar()
 
