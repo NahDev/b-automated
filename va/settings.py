@@ -26,6 +26,7 @@ class Settings:
     pasta_tessdata: str = "tessdata"
     idioma_ocr: str = "por+eng"
     tesseract_cmd: str = ""
+    tema: str = "btime"
 
     @classmethod
     def carregar(cls, caminho: Path = ARQUIVO_CONFIG) -> "Settings":

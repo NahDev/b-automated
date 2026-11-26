@@ -13,7 +13,8 @@ Testado com Python 3.14 no Windows 11.
 - **Testar na tela e medir:** ficam na aba Laboratório. "Testar na tela" mostra as ocorrências do print. "Medir ancorado" pede o quadrado do print e o ponto do clique na tela congelada, e calcula o desvio a partir do centro do quadrado.
 - **Roteiro:** monta passos (clicar imagem, clicar texto, esperar imagem ou texto, digitar, tecla, esperar segundos), salva e abre em JSON e executa. "Gerar codigo do roteiro" mostra a função Python equivalente para colar no projeto. Passos de OCR (clicar texto, esperar texto) não têm equivalente no projeto: ficam de fora e são listados no aviso.
 - **Laboratório:** ajusta o desvio do clique (dx, dy), com a cruz no centro do print. Cada print pode ter desvio próprio ("Salvar desvio deste print"); quem não tem usa o desvio padrão. O desvio próprio vai para o código gerado (`perform_action(..., offset=(dx, dy))`) e vale também para o roteiro e para o teste na tela.
-- **Configurações:** padrões de confiança, tempos de espera, desvios, pastas e idioma do OCR. Ficam em `config.json`.
+- **Configurações:** padrões de confiança, tempos de espera, desvios, pastas, idioma do OCR e tema visual. Ficam em `config.json`.
+- **Temas:** o padrão é o **btime** (cores do design system, fonte Branding). O tema **neutro** usa azul e cinza. Troque em **Configurações > Tema visual** e reinicie o programa. O código dos temas fica em `va/ui/temas.py`; para criar outro, copie um `Tema` e ajuste as cores.
 
 ## Instalação
 

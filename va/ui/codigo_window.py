@@ -31,7 +31,7 @@ class CodigoWindow(tk.Toplevel):
         ttk.Label(
             topo,
             text="Copie cada bloco e cole no lugar indicado. Depois de colar, rode o projeto.",
-            foreground="gray",
+            style="Dica.TLabel",
         ).pack(side="left", padx=12)
 
         self._texto_trecho = self._bloco(

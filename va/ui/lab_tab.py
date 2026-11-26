@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from va.ui.app import App
 
 TAMANHO_CANVAS = (760, 520)
-COR_FUNDO = "#1f2937"
 COR_CRUZ = "#ef4444"
 COR_DESVIO = "#facc15"
 
@@ -49,7 +48,7 @@ class AbaLaboratorio(ttk.Frame):
         corpo.pack(fill="both", expand=True, pady=(8, 0))
 
         largura, altura = TAMANHO_CANVAS
-        self.canvas = tk.Canvas(corpo, width=largura, height=altura, bg=COR_FUNDO, highlightthickness=0, cursor="crosshair")
+        self.canvas = tk.Canvas(corpo, width=largura, height=altura, bg=self.app.tema.visual, highlightthickness=0, cursor="crosshair")
         self.canvas.pack(side="left")
         self.canvas.bind("<Button-1>", self._clicar)
 
@@ -58,7 +57,7 @@ class AbaLaboratorio(ttk.Frame):
         ttk.Label(
             painel,
             text="Clique na area para escolher o desvio.\nClicar fora do print tambem vale.",
-            foreground="gray",
+            style="Dica.TLabel",
         ).pack(anchor="w")
         grade = ttk.Frame(painel)
         grade.pack(anchor="w", pady=10)

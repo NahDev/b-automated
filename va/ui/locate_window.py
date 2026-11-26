@@ -65,7 +65,7 @@ class JanelaTesteLocalizacao(tk.Toplevel):
         corpo.pack(fill="both", expand=True)
 
         largura, altura = TAMANHO_CANVAS
-        self.canvas = tk.Canvas(corpo, width=largura, height=altura, bg="#111827", highlightthickness=0)
+        self.canvas = tk.Canvas(corpo, width=largura, height=altura, bg=self._app.tema.visual, highlightthickness=0)
         self.canvas.pack(side="left")
 
         painel = ttk.Frame(corpo, padding=(12, 0, 0, 0))

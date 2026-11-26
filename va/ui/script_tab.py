@@ -64,17 +64,20 @@ class RoteiroTab(ttk.Frame):
         ):
             ttk.Button(laterais, text=texto, command=comando, width=18).pack(fill="x", pady=2)
 
+        tema = self.app.tema
         controles = ttk.Frame(self)
         controles.pack(fill="x")
         tk.Button(
-            controles, text="Executar", command=self.executar, bg="#16a34a", fg="white",
-            font=("Segoe UI", 12, "bold"), relief="flat", width=14,
+            controles, text="Executar", command=self.executar, bg=tema.sucesso, fg=tema.texto_primaria,
+            activebackground=tema.sucesso, activeforeground=tema.texto_primaria,
+            font=tema.fonte(12, destaque=True), relief="flat", width=14,
         ).pack(side="left")
         tk.Button(
-            controles, text="Parar", command=self._runner.parar, bg="#dc2626", fg="white",
-            font=("Segoe UI", 12, "bold"), relief="flat", width=10,
+            controles, text="Parar", command=self._runner.parar, bg=tema.perigo, fg=tema.texto_primaria,
+            activebackground=tema.perigo, activeforeground=tema.texto_primaria,
+            font=tema.fonte(12, destaque=True), relief="flat", width=10,
         ).pack(side="left", padx=8)
-        ttk.Label(controles, text="Mouse no canto superior esquerdo interrompe tudo.", foreground="gray").pack(side="left", padx=8)
+        ttk.Label(controles, text="Mouse no canto superior esquerdo interrompe tudo.", style="Dica.TLabel").pack(side="left", padx=8)
 
         codigo = ttk.Frame(self)
         codigo.pack(fill="x", pady=(8, 0))

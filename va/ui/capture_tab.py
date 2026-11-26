@@ -26,15 +26,16 @@ class CapturaTab(ttk.Frame):
     def _montar(self) -> None:
         topo = ttk.Frame(self)
         topo.pack(fill="x")
+        tema = self.app.tema
         tk.Button(
             topo, text="Capturar regiao (F9)", command=self.capturar,
-            font=("Segoe UI", 16, "bold"), bg="#2563eb", fg="white",
-            activebackground="#1d4ed8", activeforeground="white", relief="flat", height=2,
+            font=tema.fonte(16, destaque=True), bg=tema.primaria, fg=tema.texto_primaria,
+            activebackground=tema.primaria, activeforeground=tema.texto_primaria, relief="flat", height=2,
         ).pack(fill="x")
         ttk.Label(
             topo,
             text="Clique no botao (ou F9), arraste sobre o alvo e solte. Depois informe o modulo (pagina), o nome do print e a acao padrao.",
-            foreground="gray",
+            style="Dica.TLabel",
         ).pack(anchor="w", pady=(6, 10))
 
         corpo = ttk.Frame(self)

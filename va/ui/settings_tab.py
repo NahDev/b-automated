@@ -6,6 +6,7 @@ from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING
 
 from va.settings import Settings
+from va.ui.temas import TEMAS
 
 if TYPE_CHECKING:
     from va.ui.app import App
@@ -16,10 +17,12 @@ class Campo:
     chave: str
     titulo: str
     dica: str
-    tipo: str  # "float", "int", "bool", "lista" (valores separados por virgula) ou "texto"
+    tipo: str  # "float", "int", "bool", "lista" (valores separados por virgula), "texto" ou "escolha"
+    opcoes: tuple[str, ...] = ()  # so para "escolha"
 
 
 CAMPOS = (
+    Campo("tema", "Tema visual", "Cores e fonte da tela. Vale ao reiniciar o programa", "escolha", tuple(TEMAS)),
     Campo("confianca", "Confianca padrao (0 a 1)", "Quanto maior, mais parecido o alvo precisa estar. Ex: 0.8", "float"),
     Campo("niveis_confianca_fallback", "Tolerancias extras", "Usadas se a padrao nao achar. Separe por virgula. Ex: 0.7, 0.6", "lista"),
     Campo("timeout", "Tempo maximo de espera (s)", "Quanto tempo procurar o alvo antes de desistir", "float"),
@@ -71,10 +74,15 @@ class ConfigTab(ttk.Frame):
             if campo.tipo == "bool":
                 variavel: tk.Variable = tk.BooleanVar()
                 ttk.Checkbutton(quadro, variable=variavel).grid(row=linha, column=1, sticky="w")
+            elif campo.tipo == "escolha":
+                variavel = tk.StringVar()
+                ttk.Combobox(quadro, textvariable=variavel, values=campo.opcoes, state="readonly", width=30).grid(
+                    row=linha, column=1, sticky="w"
+                )
             else:
                 variavel = tk.StringVar()
                 ttk.Entry(quadro, textvariable=variavel, width=32).grid(row=linha, column=1, sticky="w")
-            ttk.Label(quadro, text=campo.dica, foreground="gray").grid(row=linha, column=2, sticky="w", padx=8)
+            ttk.Label(quadro, text=campo.dica, style="Dica.TLabel").grid(row=linha, column=2, sticky="w", padx=8)
             self._variaveis[campo.chave] = variavel
 
         botoes = ttk.Frame(quadro)
@@ -95,5 +103,8 @@ class ConfigTab(ttk.Frame):
         except ValueError as erro:
             messagebox.showerror("Valor invalido", f"Confira os campos numericos.\n\n{erro}", parent=self.app)
             return
+        trocou_tema = alteracoes["tema"] != self.app.settings.tema
         self.app.aplicar_settings(self.app.settings.alterar(**alteracoes))
         self.app.registrar("Configuracoes salvas em config.json.")
+        if trocou_tema:
+            messagebox.showinfo("Tema", "Reinicie o programa para aplicar o novo tema.", parent=self.app)

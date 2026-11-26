@@ -25,6 +25,8 @@ from va.ui.overlay import medir_ancorado as abrir_medicao_ancorada
 from va.ui.overlay import medir_desvio
 from va.ui.script_tab import RoteiroTab
 from va.ui.settings_tab import ConfigTab
+from va.ui.temas import aplicar as aplicar_tema
+from va.ui.temas import obter as obter_tema
 
 
 class App(tk.Tk):
@@ -35,6 +37,7 @@ class App(tk.Tk):
         self.minsize(860, 560)
 
         self.settings = Settings.carregar()
+        self.tema = aplicar_tema(self, obter_tema(self.settings.tema))
         self.automador = Automador(self.settings)
         self.biblioteca = Biblioteca(self.automador.pasta_saida)
         self.ultimo_modulo = ""
